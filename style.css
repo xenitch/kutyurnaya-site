@@ -1,0 +1,54 @@
+/* Палитра «Chanel»: белая бумага, чёрные чернила, золотой акцент */
+:root {
+  --paper: #ffffff; --ink: #111111; --muted: #6b6b6b; --rule: #111111; --gold: #b08d3f;
+}
+@font-face { font-family: "Playfair Display"; src: url(/fonts/playfair-display-v40-cyrillic_latin-regular.woff2) format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Playfair Display"; src: url(/fonts/playfair-display-v40-cyrillic_latin-700.woff2) format("woff2"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Playfair Display"; src: url(/fonts/playfair-display-v40-cyrillic_latin-italic.woff2) format("woff2"); font-style: italic; font-display: swap; }
+@font-face { font-family: "Literata"; src: url(/fonts/literata-v40-cyrillic_latin-regular.woff2) format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Literata"; src: url(/fonts/literata-v40-cyrillic_latin-700.woff2) format("woff2"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Literata"; src: url(/fonts/literata-v40-cyrillic_latin-italic.woff2) format("woff2"); font-style: italic; font-display: swap; }
+
+html { background: var(--paper); color: var(--ink); }
+body {
+  margin: 0 auto; padding: 3.5rem 1.25rem 4rem; max-width: 36rem; min-height: 100vh;
+  box-sizing: border-box; display: flex; flex-direction: column;
+  font: 400 1.125rem/1.65 "Literata", "PT Serif", Georgia, serif;
+  hyphens: auto; font-feature-settings: "onum" 1;
+  -webkit-font-smoothing: antialiased;
+}
+main { flex: 1; }
+p { margin: 0 0 1em; }
+
+h1, h2 { font-family: "Playfair Display", Georgia, serif; font-weight: 400; line-height: 1.15; margin: 0.2em 0 0.6em; letter-spacing: -0.005em; }
+h1 { font-size: 2.4rem; }
+h2 { font-size: 1.9rem; }
+
+a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--gold);
+  text-decoration-thickness: 1px; text-underline-offset: 4px; }
+a:hover { color: var(--gold); }
+
+.site-header { text-align: center; border-bottom: 1px solid var(--rule); padding-bottom: 1.5rem; margin-bottom: 3.5rem; }
+.site-name { font-family: "Playfair Display", Georgia, serif; font-size: 1.6rem; letter-spacing: 0.32em;
+  text-transform: uppercase; margin: 0 0 0.5rem; padding-left: 0.32em; }
+.site-tagline { color: var(--muted); font-size: 0.95rem; letter-spacing: 0.04em; margin: 0; }
+
+.kicker { font-variant-caps: all-small-caps; letter-spacing: 0.14em; color: var(--muted); margin: 0; font-size: 1.05rem; }
+
+.fleuron { text-align: center; color: var(--gold); font-size: 1.3rem; margin: 2.5rem 0; }
+
+.cta { margin-top: 1.75rem; }
+.cta a { display: inline-block; padding: 0.7rem 1.4rem; border: 1px solid var(--ink);
+  text-decoration: none; font-variant-caps: all-small-caps; letter-spacing: 0.12em; font-size: 1.05rem; }
+.cta a:hover { background: var(--ink); color: var(--paper); }
+
+.site-footer { margin-top: 4rem; border-top: 1px solid var(--rule); padding-top: 1rem;
+  color: var(--muted); font-size: 0.9rem; text-align: center; }
+.site-footer p { margin: 0; }
+
+@media (max-width: 480px) {
+  body { padding-top: 2.5rem; }
+  h1 { font-size: 1.9rem; }
+  h2 { font-size: 1.55rem; }
+  .site-name { font-size: 1.3rem; }
+}
