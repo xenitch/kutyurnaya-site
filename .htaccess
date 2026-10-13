@@ -3,9 +3,9 @@ AddDefaultCharset utf-8
 DirectoryIndex index.html
 
 RewriteEngine On
-# www → без www (протокол сохраняем; редирект на https включается в панели после выпуска сертификата)
+# www → основной адрес сразу по https (сертификат выпущен в панели Timeweb)
 RewriteCond %{HTTP_HOST} ^www\.kutyurnaya\.ru$ [NC]
-RewriteRule ^(.*)$ %{REQUEST_SCHEME}://kutyurnaya.ru/$1 [R=301,L]
+RewriteRule ^(.*)$ https://kutyurnaya.ru/$1 [R=301,L]
 
 # Кэширование статики
 <IfModule mod_expires.c>
