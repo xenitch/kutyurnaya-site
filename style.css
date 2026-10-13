@@ -31,11 +31,21 @@ a:hover { color: var(--gold); }
 .site-header { text-align: center; border-bottom: 1px solid var(--rule); padding-bottom: 1.5rem; margin-bottom: 3.5rem; }
 .site-name { font-family: "Playfair Display", Georgia, serif; font-size: 1.6rem; letter-spacing: 0.32em;
   text-transform: uppercase; margin: 0 0 0.5rem; padding-left: 0.32em; }
+.site-name-pre { display: block; font-family: "Literata", Georgia, serif; font-size: 0.8rem; letter-spacing: 0.22em;
+  color: var(--muted); margin-bottom: 0.35rem; }
 .site-tagline { color: var(--muted); font-size: 0.95rem; letter-spacing: 0.04em; margin: 0; }
 
 .kicker { font-variant-caps: all-small-caps; letter-spacing: 0.14em; color: var(--muted); margin: 0; font-size: 1.05rem; }
 
 .fleuron { text-align: center; color: var(--gold); font-size: 1.3rem; margin: 2.5rem 0; }
+
+.section-title { font-family: "Playfair Display", Georgia, serif; font-weight: 400; font-size: 1.1rem;
+  font-variant-caps: all-small-caps; letter-spacing: 0.2em; color: var(--muted); text-align: center; margin: 0 0 2rem; }
+.event h3 { font-family: "Playfair Display", Georgia, serif; font-weight: 400; font-size: 1.6rem; line-height: 1.2;
+  margin: 0.2em 0 0.8em; hyphens: manual; }
+.event-photo { margin: 0 0 1.25rem; }
+.event-photo img { display: block; width: 100%; height: auto; }
+.event-link { margin-top: 1.25rem; }
 
 .cta { margin-top: 1.75rem; }
 .cta a { display: inline-block; padding: 0.7rem 1.4rem; border: 1px solid var(--ink);
@@ -50,5 +60,6 @@ a:hover { color: var(--gold); }
   body { padding-top: 2.5rem; }
   h1 { font-size: 1.9rem; }
   h2 { font-size: 1.55rem; }
+  .event h3 { font-size: 1.35rem; }
   .site-name { font-size: 1.3rem; }
 }
