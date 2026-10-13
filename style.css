@@ -45,6 +45,8 @@ a:hover { color: var(--gold); }
 .event-photo img { display: block; width: 100%; max-width: 100%; height: auto; }
 .event-link { margin-top: 1.25rem; }
 
+.heart { color: var(--ink); font-size: 0.95em; }
+
 .cta { margin-top: 1.75rem; }
 .cta a { display: inline-block; padding: 0.7rem 1.4rem; border: 1px solid var(--ink);
   text-decoration: none; font-variant-caps: all-small-caps; letter-spacing: 0.12em; font-size: 1.05rem; }
