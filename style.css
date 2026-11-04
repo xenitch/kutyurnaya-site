@@ -91,3 +91,4 @@ a:hover { color: var(--gold); }
 .event-place { margin: 0 0 0.3rem; }
 .event-price { margin: 0 0 0.5rem; font-variant-caps: all-small-caps; letter-spacing: 0.1em; font-size: 1.1rem; }
 .form-note { font-size: 0.9rem; color: var(--muted); margin: 0; }
+.reg-form .optional { color: var(--muted); font-size: 0.9em; }

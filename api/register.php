@@ -61,6 +61,9 @@ $phoneRaw = trim((string) ($_POST['phone'] ?? ''));
 $telegram = trim((string) ($_POST['telegram'] ?? ''));
 $eventKey = (string) ($_POST['event'] ?? '');
 $consent  = isset($_POST['consent']);
+$newsletter = isset($_POST['newsletter']);
+const NEWSLETTER_TAG = 'согласие на рассылку';
+const NEWSLETTER_CONSENT_VERSION = 'soglasie-rassylka 2026-11-05';
 
 $event = $config['events'][$eventKey] ?? null;
 if (!$event || empty($event['open'])) { fail_page('Регистрация на это мероприятие закрыта.'); }
@@ -79,10 +82,13 @@ if ($telegram !== '-') {
 }
 if (!$consent) { fail_page('Нужно согласие на обработку персональных данных.'); }
 
-$reg = ['event' => $eventKey, 'name' => $name, 'phone' => $phone, 'telegram' => $telegram];
+$reg = ['event' => $eventKey, 'name' => $name, 'phone' => $phone, 'telegram' => $telegram,
+        'newsletter' => $newsletter ? NEWSLETTER_CONSENT_VERSION : false,
+        'ip' => $_SERVER['REMOTE_ADDR'] ?? '', 'ua' => substr((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 200)];
 log_line($config, 'registrations.jsonl', $reg);   // копия заявки на хостинге — на случай сбоя amoCRM
 
-$info = "Имя: $name\nНомер телефона: $phone\nТелеграм: " . ($telegram !== '-' ? $telegram : 'нет');
+$info = "Имя: $name\nНомер телефона: $phone\nТелеграм: " . ($telegram !== '-' ? $telegram : 'нет')
+      . "\nРассылка анонсов: " . ($newsletter ? 'согласие дано ' . date('d.m.Y H:i') : 'нет');
 
 try {
     // Ищем существующий контакт по телефону (последние 10 цифр), чтобы не плодить дубли
@@ -98,8 +104,13 @@ try {
         }
     }
 
+    $tags = $newsletter ? [['name' => NEWSLETTER_TAG]] : [];
+    if ($contactId && $newsletter) {
+        amo($config, 'PATCH', "/contacts/$contactId", ['tags_to_add' => $tags]);
+    }
     $contact = $contactId ? ['id' => $contactId] : [
         'name' => $name,
+        '_embedded' => ['tags' => $tags],
         'custom_fields_values' => array_values(array_filter([
             ['field_id' => AMO_FIELD_PHONE, 'values' => [['value' => $phone, 'enum_code' => 'WORK']]],
             $telegram !== '-' ? ['field_id' => AMO_FIELD_TELEGRAM, 'values' => [['value' => $telegram]]] : null,
@@ -115,7 +126,7 @@ try {
             ['field_id' => AMO_FIELD_INFO,   'values' => [['value' => $info]]],
             ['field_id' => AMO_FIELD_SOURCE, 'values' => [['value' => 'https://kutyurnaya.ru/ · ' . $eventKey]]],
         ],
-        '_embedded' => ['contacts' => [$contact]],
+        '_embedded' => ['contacts' => [$contact], 'tags' => $tags],
     ];
     $res = amo($config, 'POST', '/leads/complex', [$lead]);
     log_line($config, 'amo-ok.jsonl', ['event' => $eventKey, 'lead_id' => $res[0]['id'] ?? null, 'contact_existing' => (bool) $contactId]);
