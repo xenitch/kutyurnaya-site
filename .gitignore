@@ -1,0 +1,4 @@
+# Секреты и данные живут только на хостинге
+server/config.php
+kutyurnaya-config.php
+.DS_Store

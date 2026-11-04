@@ -26,3 +26,20 @@ GitHub Pages для домена больше не используется.
 
 - `@` A → 92.53.96.201, `www` A → 92.53.96.201
 - MX `10 mx.yandex.net`, TXT yandex-verification, SPF, DKIM `mail._domainkey` — почта на Яндексе, не трогать
+
+## Регистрация на встречи → amoCRM
+
+- Форма на странице шлёт POST на `/api/register.php` (PHP 8.2 на хостинге).
+- Скрипт проверяет поля, сохраняет копию заявки в `~/kutyurnaya-data/registrations.jsonl`, ищет контакт по почте,
+  создаёт сделку с контактом в воронке «Покупка с сайта», этап «заявка с сайта», и перенаправляет на `payment_url`
+  мероприятия (если пусто — на `/spasibo/`). Сбой amoCRM не блокирует человека: ошибка пишется в `amo-errors.jsonl`.
+- Конфиг с токеном и списком мероприятий — только на хостинге: `~/kutyurnaya-config.php` (права 600),
+  образец в `server/config.example.php`. Открыть регистрацию = добавить мероприятие в `events` с `open => true`.
+- Токен amoCRM: долгосрочный, интеграция «Сайт kutyurnaya.ru» (внешняя). Перевыпустить до окончания срока.
+- `/test-form/` — тестовая страница формы (noindex), `/spasibo/` — страница после заявки.
+
+Загрузка скрипта и страниц:
+
+    scp api/register.php ct757322@vh460.timeweb.ru:public_html/api/
+    scp test-form/index.html ct757322@vh460.timeweb.ru:public_html/test-form/
+    scp spasibo/index.html ct757322@vh460.timeweb.ru:public_html/spasibo/

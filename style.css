@@ -63,3 +63,18 @@ a:hover { color: var(--gold); }
   .event h3 { font-size: 1.35rem; }
   .site-name { font-size: 1.05rem; letter-spacing: 0.16em; padding-left: 0.16em; }
 }
+
+/* Форма регистрации */
+.site-name a { color: inherit; text-decoration: none; }
+.reg-form { display: grid; gap: 1.1rem; margin-top: 1.5rem; }
+.reg-form label { display: grid; gap: 0.35rem; font-variant-caps: all-small-caps; letter-spacing: 0.1em; font-size: 1.05rem; }
+.reg-form .hint { font-variant-caps: normal; letter-spacing: 0; font-size: 0.85rem; color: var(--muted); font-style: italic; }
+.reg-form input:not([type="checkbox"]) { font: inherit; font-variant-caps: normal; letter-spacing: 0; font-size: 1.05rem;
+  padding: 0.6rem 0.75rem; border: 1px solid var(--muted); border-radius: 0; background: var(--paper); color: var(--ink); width: 100%; box-sizing: border-box; }
+.reg-form input:focus { outline: 2px solid var(--gold); outline-offset: 1px; border-color: var(--ink); }
+.reg-form .consent { display: flex; gap: 0.6rem; align-items: baseline; font-variant-caps: normal; letter-spacing: 0; font-size: 0.95rem; }
+.reg-form .consent input { accent-color: var(--ink); width: 1.05rem; height: 1.05rem; flex: none; }
+.reg-form .hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+.reg-form button { font: inherit; font-variant-caps: all-small-caps; letter-spacing: 0.12em; font-size: 1.1rem; cursor: pointer;
+  padding: 0.8rem 1.4rem; border: 1px solid var(--ink); background: var(--ink); color: var(--paper); justify-self: start; }
+.reg-form button:hover { background: var(--paper); color: var(--ink); }
