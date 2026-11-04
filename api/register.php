@@ -5,7 +5,6 @@ declare(strict_types=1);
 $config = require dirname(__DIR__, 2) . '/kutyurnaya-config.php';
 
 const AMO_FIELD_PHONE    = 705935;
-const AMO_FIELD_EMAIL    = 705937;
 const AMO_FIELD_TELEGRAM = 705981;
 const AMO_FIELD_INFO     = 705991;  // «Информация»
 const AMO_FIELD_SOURCE   = 705995;  // «Источник заказа»
@@ -59,7 +58,6 @@ if (trim((string) ($_POST['website'] ?? '')) !== '') {
 
 $name     = trim((string) ($_POST['name'] ?? ''));
 $phoneRaw = trim((string) ($_POST['phone'] ?? ''));
-$email    = trim((string) ($_POST['email'] ?? ''));
 $telegram = trim((string) ($_POST['telegram'] ?? ''));
 $eventKey = (string) ($_POST['event'] ?? '');
 $consent  = isset($_POST['consent']);
@@ -72,25 +70,30 @@ if (strlen($digits) === 11 && $digits[0] === '8') { $digits = '7' . substr($digi
 if (strlen($digits) === 10) { $digits = '7' . $digits; }
 if (strlen($digits) < 11 || strlen($digits) > 15) { fail_page('Проверьте номер телефона.'); }
 $phone = '+' . $digits;
-if (!filter_var($email, FILTER_VALIDATE_EMAIL) || mb_strlen($email) > 150) { fail_page('Проверьте адрес почты.'); }
+$telegram = str_replace(['—', '–'], '-', $telegram);
+if ($telegram === '') { fail_page('Укажите ник в телеграме или поставьте прочерк.'); }
 if (mb_strlen($telegram) > 64) { fail_page('Слишком длинный ник в телеграме.'); }
-if ($telegram !== '' && $telegram !== '-' && $telegram[0] !== '@') { $telegram = '@' . ltrim($telegram, '@'); }
+if ($telegram !== '-') {
+    $telegram = preg_replace('~^(https?://)?(t\.me/|telegram\.me/)~i', '', $telegram);
+    $telegram = '@' . ltrim($telegram, '@');
+}
 if (!$consent) { fail_page('Нужно согласие на обработку персональных данных.'); }
 
-$reg = ['event' => $eventKey, 'name' => $name, 'phone' => $phone, 'email' => $email, 'telegram' => $telegram];
+$reg = ['event' => $eventKey, 'name' => $name, 'phone' => $phone, 'telegram' => $telegram];
 log_line($config, 'registrations.jsonl', $reg);   // копия заявки на хостинге — на случай сбоя amoCRM
 
-$info = "Имя: $name\nНомер телефона: $phone\nПочта: $email\nТелеграм: " . ($telegram !== '' ? $telegram : '—');
+$info = "Имя: $name\nНомер телефона: $phone\nТелеграм: " . ($telegram !== '-' ? $telegram : 'нет');
 
 try {
-    // Ищем существующий контакт по почте, чтобы не плодить дубли
+    // Ищем существующий контакт по телефону (последние 10 цифр), чтобы не плодить дубли
     $contactId = null;
-    $found = amo($config, 'GET', '/contacts?query=' . rawurlencode($email) . '&limit=5');
+    $tail = substr($digits, -10);
+    $found = amo($config, 'GET', '/contacts?query=' . rawurlencode($tail) . '&limit=10');
     foreach ($found['_embedded']['contacts'] ?? [] as $c) {
         foreach ($c['custom_fields_values'] ?? [] as $f) {
-            if ((int) $f['field_id'] !== AMO_FIELD_EMAIL) { continue; }
+            if ((int) $f['field_id'] !== AMO_FIELD_PHONE) { continue; }
             foreach ($f['values'] as $v) {
-                if (mb_strtolower($v['value']) === mb_strtolower($email)) { $contactId = (int) $c['id']; break 3; }
+                if (substr(preg_replace('/\D+/', '', (string) $v['value']), -10) === $tail) { $contactId = (int) $c['id']; break 3; }
             }
         }
     }
@@ -99,8 +102,7 @@ try {
         'name' => $name,
         'custom_fields_values' => array_values(array_filter([
             ['field_id' => AMO_FIELD_PHONE, 'values' => [['value' => $phone, 'enum_code' => 'WORK']]],
-            ['field_id' => AMO_FIELD_EMAIL, 'values' => [['value' => $email, 'enum_code' => 'WORK']]],
-            $telegram !== '' ? ['field_id' => AMO_FIELD_TELEGRAM, 'values' => [['value' => $telegram]]] : null,
+            $telegram !== '-' ? ['field_id' => AMO_FIELD_TELEGRAM, 'values' => [['value' => $telegram]]] : null,
         ])),
     ];
 
@@ -119,7 +121,7 @@ try {
     log_line($config, 'amo-ok.jsonl', ['event' => $eventKey, 'lead_id' => $res[0]['id'] ?? null, 'contact_existing' => (bool) $contactId]);
 } catch (Throwable $e) {
     // Заявка уже сохранена в registrations.jsonl; человека не задерживаем
-    log_line($config, 'amo-errors.jsonl', ['event' => $eventKey, 'email' => $email, 'error' => $e->getMessage()]);
+    log_line($config, 'amo-errors.jsonl', ['event' => $eventKey, 'phone' => $phone, 'error' => $e->getMessage()]);
 }
 
 $target = $event['payment_url'] !== '' ? $event['payment_url'] : '/spasibo/';

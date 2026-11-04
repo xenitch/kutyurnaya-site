@@ -87,3 +87,7 @@ a:hover { color: var(--gold); }
 .legal-date { color: var(--muted); font-style: italic; }
 .todo { background: #fff3b0; padding: 0 0.2em; }
 .site-footer .legal-links { margin-top: 0.4rem; font-size: 0.85rem; }
+
+.event-place { margin: 0 0 0.3rem; }
+.event-price { margin: 0 0 0.5rem; font-variant-caps: all-small-caps; letter-spacing: 0.1em; font-size: 1.1rem; }
+.form-note { font-size: 0.9rem; color: var(--muted); margin: 0; }

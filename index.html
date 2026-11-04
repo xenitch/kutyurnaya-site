@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Кутюрная — мода как искусство, Кемерово</title>
+  <title>История модных показов, 22 ноября — Кутюрная, Кемерово</title>
   <meta name="description" content="Сообщество «Кутюрная», Кемерово. Мода как искусство: эстетика, смыслы, история. Встречи и лекции об истории моды. Анонсы в телеграм-канале @kutyurnaya.">
   <meta property="og:type" content="website">
   <meta property="og:title" content="Сообщество «Кутюрная»">
-  <meta property="og:description" content="Мода как искусство: эстетика, смыслы, история · Кемерово. В ноябре — встреча о модных показах. Следите за анонсами в телеграм-канале @kutyurnaya.">
+  <meta property="og:description" content="Мода как искусство: эстетика, смыслы, история · Кемерово. 22 ноября — лекция «История модных показов» в Областной научной библиотеке. Регистрация на сайте.">
   <meta property="og:url" content="https://kutyurnaya.ru/">
   <meta property="og:image" content="https://kutyurnaya.ru/images/chanel-2026-10-11.jpg">
   <meta property="og:locale" content="ru_RU">
@@ -16,7 +16,7 @@
   <link rel="icon" type="image/png" sizes="192x192" href="/icons/favicon-192.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
   <meta name="theme-color" content="#4a1526">
-  <link rel="stylesheet" href="/style.css?v=20261104b">
+  <link rel="stylesheet" href="/style.css?v=20261104c">
 </head>
 <body>
   <header class="site-header">
@@ -25,10 +25,21 @@
   </header>
 
   <main>
-    <section class="note">
-      <p class="kicker">Ноябрь</p>
-      <h1>Встреча о&nbsp;модных показах</h1>
-      <p>Вскоре объявим точную дату и&nbsp;откроем регистрацию, следите за&nbsp;анонсами <a href="https://t.me/Kutyurnaya">в&nbsp;нашем телеграм-канале @kutyurnaya</a>&nbsp;<span class="heart" aria-hidden="true">♥</span></p>
+    <section class="note" id="register">
+      <p class="kicker">22 ноября · сбор гостей в&nbsp;13:00</p>
+      <h1>История модных показов</h1>
+      <p class="event-place">ул.&nbsp;Дзержинского, 19, витражный зал Областной научной библиотеки им.&nbsp;В.&nbsp;Д.&nbsp;Фёдорова</p>
+      <p class="event-price">Стоимость участия&nbsp;— 2000&nbsp;₽</p>
+      <form class="reg-form" method="post" action="/api/register.php">
+        <input type="hidden" name="event" value="pokazy-2026-11-22">
+        <label>Имя<input name="name" required maxlength="100" autocomplete="name"></label>
+        <label>Номер телефона<input name="phone" type="tel" required autocomplete="tel" placeholder="+7 900 000-00-00"></label>
+        <label>Телеграм<span class="hint">если нет аккаунта, поставьте прочерк</span><input name="telegram" required maxlength="64" placeholder="@ник"></label>
+        <label class="hp" aria-hidden="true">Сайт<input name="website" tabindex="-1" autocomplete="off"></label>
+        <label class="consent"><input type="checkbox" name="consent" required> <span>Даю <a href="/soglasie/" target="_blank">согласие на&nbsp;обработку персональных данных</a> и&nbsp;подтверждаю, что ознакомлен(-а) с&nbsp;<a href="/privacy/" target="_blank">политикой обработки персональных данных</a></span></label>
+        <button type="submit">Оплатить</button>
+        <p class="form-note">После нажатия откроется страница оплаты банка Точка. Новости и&nbsp;подробности&nbsp;— <a href="https://t.me/Kutyurnaya">в&nbsp;нашем телеграм-канале @kutyurnaya</a>&nbsp;<span class="heart" aria-hidden="true">♥</span></p>
+      </form>
     </section>
 
     <p class="fleuron" aria-hidden="true">❦</p>
