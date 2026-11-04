@@ -78,3 +78,12 @@ a:hover { color: var(--gold); }
 .reg-form button { font: inherit; font-variant-caps: all-small-caps; letter-spacing: 0.12em; font-size: 1.1rem; cursor: pointer;
   padding: 0.8rem 1.4rem; border: 1px solid var(--ink); background: var(--ink); color: var(--paper); justify-self: start; }
 .reg-form button:hover { background: var(--paper); color: var(--ink); }
+
+/* Юридические страницы */
+.legal h1 { font-size: 2rem; }
+.legal h2 { font-size: 1.25rem; margin: 2em 0 0.6em; }
+.legal p, .legal li { font-size: 1rem; line-height: 1.6; }
+.legal ul { padding-left: 1.2em; margin: 0 0 1em; }
+.legal-date { color: var(--muted); font-style: italic; }
+.todo { background: #fff3b0; padding: 0 0.2em; }
+.site-footer .legal-links { margin-top: 0.4rem; font-size: 0.85rem; }
