@@ -16,7 +16,7 @@
   <link rel="icon" type="image/png" sizes="192x192" href="/icons/favicon-192.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
   <meta name="theme-color" content="#4a1526">
-  <link rel="stylesheet" href="/style.css?v=20261104c">
+  <link rel="stylesheet" href="/style.css?v=20261105a">
 </head>
 <body>
   <header class="site-header">
@@ -63,5 +63,21 @@
     <p>Кутюрная · Кемерово · <a href="https://t.me/Kutyurnaya">@kutyurnaya</a></p>
     <p class="legal-links"><a href="/privacy/">Политика обработки персональных данных</a></p>
   </footer>
+  <script>
+    (function () {
+      var form = document.querySelector('.reg-form');
+      if (!form) return;
+      var button = form.querySelector('button[type="submit"]');
+      var label = button.textContent;
+      function reset() { form.classList.remove('is-sending'); button.disabled = false; button.textContent = label; }
+      form.addEventListener('submit', function (e) {
+        if (form.classList.contains('is-sending')) { e.preventDefault(); return; }
+        form.classList.add('is-sending');
+        button.disabled = true;
+        button.textContent = 'Записываем…';
+      });
+      window.addEventListener('pageshow', function (e) { if (e.persisted) reset(); });
+    })();
+  </script>
 </body>
 </html>
