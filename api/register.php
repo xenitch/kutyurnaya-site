@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 $config = require dirname(__DIR__, 2) . '/kutyurnaya-config.php';
-require dirname(__DIR__, 2) . '/kutyurnaya-app/lib.php';   // amo(), log_line(), tg_send(), тексты бота
+require dirname(__DIR__, 2) . '/kutyurnaya-app/lib.php';   // amo(), log_line(), tg_queue(), тексты бота
 
 const AMO_FIELD_PHONE    = 705935;
 const AMO_FIELD_TELEGRAM = 705981;
@@ -111,7 +111,7 @@ try {
     // Заявка уже сохранена в registrations.jsonl; человека не задерживаем
     log_line($config, 'amo-errors.jsonl', ['event' => $eventKey, 'phone' => $phone, 'error' => $e->getMessage()]);
 }
-tg_send($config, $notice);  // не дольше 4 с; при сбое Telegram — только запись в tg-errors.jsonl
+tg_queue($config, $notice);  // мгновенно; отправит cron (server/tg-flush.php) — гость Telegram не ждёт
 
 $target = $event['payment_url'] !== '' ? $event['payment_url'] : '/spasibo/';
 header('Location: ' . $target, true, 303);

@@ -1,7 +1,7 @@
 <?php
 // Утренний отчёт в чат организаторов: сколько мест занято.
 // Cron в панели Timeweb: 0 5 * * *  (05:00 МСК = 09:00 Кемерово)
-// --dry-run — напечатать текст и ничего не отправлять.
+// --dry-run — напечатать текст и ничего не отправлять. Отправка — через очередь (lib.php: tg_queue/tg_flush).
 declare(strict_types=1);
 require __DIR__ . '/lib.php';
 $config = require dirname(__DIR__) . '/kutyurnaya-config.php';
@@ -23,9 +23,15 @@ try {
     );
 } catch (Throwable $e) {
     log_line($config, 'report-errors.jsonl', ['error' => $e->getMessage()]);
-    if ($dry) { echo "ОШИБКА amoCRM: см. report-errors.jsonl\n"; } else { tg_send($config, MSG_REPORT_FAILED); }
-    exit(1);
+    if ($dry) { echo "ОШИБКА amoCRM: см. report-errors.jsonl\n"; exit(1); }
+    $text = MSG_REPORT_FAILED;
 }
 
 if ($dry) { echo $text, "\n"; exit(0); }
-exit(tg_send($config, $text) ? 0 : 1);
+// В очередь и сразу пробуем отправить: до 4 попыток за ~1,5 минуты, остальное дошлёт cron tg-flush.php
+tg_queue($config, $text);
+for ($i = 0; $i < 4; $i++) {
+    if ($i) { sleep(30); }
+    if (tg_flush($config)['left'] === 0) { exit(0); }
+}
+exit(1);

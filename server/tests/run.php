@@ -86,6 +86,55 @@ check('amo_count_leads: пустой статус (204) → 0', amo_count_leads(
 check('msg_report', msg_report('История модных показов · 22 ноября', 6, 12, 4)
     === "☀️ История модных показов · 22 ноября\nЗанято мест: 18\n· оплатили, билет ещё не отправлен: 6\n· билет отправлен: 12\nЖдут оплаты: 4");
 
+// --- очередь сообщений ---
+$qDir = "$logDir/q"; $q = $cfg; $q['log_dir'] = $qDir;
+$box = "$qDir/tg-outbox.jsonl";
+tg_queue($q, 'первое'); tg_queue($q, 'второе');
+$lines = file($box, FILE_IGNORE_NEW_LINES);
+check('tg_queue: дописывает строку на сообщение', count($lines) === 2 && json_decode($lines[1], true)['text'] === 'второе');
+
+$texts = [];
+$rec = function (string $url, array $f) use (&$texts): array { $texts[] = $f['text']; return ['code' => 200, 'body' => '{"ok":true}', 'error' => '']; };
+$r = tg_flush($q, $rec);
+check('tg_flush: отправляет всё по порядку', $texts === ['первое', 'второе'] && $r === ['sent' => 2, 'left' => 0]);
+check('tg_flush: очередь пуста после отправки', !file_exists($box) || trim((string) file_get_contents($box)) === '');
+
+tg_queue($q, 'а'); tg_queue($q, 'б'); tg_queue($q, 'в');
+$n = 0;
+$flaky = function (string $url, array $f) use (&$n): array {
+    $n++;
+    return $n === 1 ? ['code' => 200, 'body' => '{"ok":true}', 'error' => ''] : ['code' => 0, 'body' => '', 'error' => 'timeout'];
+};
+$r = tg_flush($q, $flaky);
+check('tg_flush: при сбое Telegram останавливается', $n === 2 && $r === ['sent' => 1, 'left' => 2]);
+$queued = fn(): array => array_map(fn($l) => json_decode($l, true)['text'], array_merge(
+    @file("$qDir/tg-outbox.processing.jsonl", FILE_IGNORE_NEW_LINES) ?: [], @file($box, FILE_IGNORE_NEW_LINES) ?: []));
+$left = $queued();
+check('tg_flush: неотправленные остаются в очереди по порядку', $left === ['б', 'в']);
+$texts = [];
+tg_flush($q, $rec);
+check('tg_flush: следующий запуск досылает остаток', $texts === ['б', 'в']);
+
+file_put_contents($box, json_encode(['text' => 'старое', 'queued' => time() - 25 * 3600], JSON_UNESCAPED_UNICODE) . "\n"
+    . json_encode(['text' => 'свежее', 'queued' => time()], JSON_UNESCAPED_UNICODE) . "\n");
+$texts = [];
+$r = tg_flush($q, $rec);
+check('tg_flush: сообщения старше суток выбрасываются', $texts === ['свежее'] && $r === ['sent' => 1, 'left' => 0]);
+
+file_put_contents("$qDir/tg-outbox.processing.jsonl", json_encode(['text' => 'после сбоя', 'queued' => time()], JSON_UNESCAPED_UNICODE) . "\n");
+tg_queue($q, 'новое');
+$texts = [];
+tg_flush($q, $rec);
+check('tg_flush: подбирает файл, оставшийся от прерванного запуска', $texts === ['после сбоя', 'новое']);
+
+$lock = fopen("$qDir/tg-outbox.lock", 'c'); flock($lock, LOCK_EX);
+tg_queue($q, 'ждёт');
+$called = false;
+$r = tg_flush($q, function () use (&$called) { $called = true; return ['code' => 200, 'body' => '{"ok":true}', 'error' => '']; });
+check('tg_flush: если уже идёт другой запуск — сразу выходит', $called === false && $r === ['sent' => 0, 'left' => -1]);
+flock($lock, LOCK_UN); fclose($lock);
+
+array_map('unlink', glob("$qDir/*") ?: []); @rmdir($qDir);
 array_map('unlink', glob("$logDir/*") ?: []);
 @rmdir($logDir);
 echo $failed ? "\nПРОВАЛЕНО: $failed\n" : "\nВСЕ ТЕСТЫ ПРОШЛИ\n";

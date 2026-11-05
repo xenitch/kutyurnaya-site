@@ -99,3 +99,50 @@ function msg_report(string $title, int $paid, int $ticket, int $waiting): string
     return "☀️ $title\nЗанято мест: " . ($paid + $ticket)
          . "\n· оплатили, билет ещё не отправлен: $paid\n· билет отправлен: $ticket\nЖдут оплаты: $waiting";
 }
+
+// Очередь сообщений в чат: с сервера Telegram доступен через раз, поэтому форма только кладёт
+// сообщение в очередь (мгновенно), а tg_flush() по cron досылает. Сообщения старше суток выбрасываются.
+const TG_MAX_AGE = 86400;
+
+function tg_queue(array $config, string $text): void {
+    $dir = $config['log_dir'];
+    if (!is_dir($dir)) { @mkdir($dir, 0700, true); }
+    @file_put_contents("$dir/tg-outbox.jsonl", json_encode(['text' => $text, 'queued' => time()], JSON_UNESCAPED_UNICODE) . "\n", FILE_APPEND | LOCK_EX);
+}
+
+// Досылает очередь по порядку; при первом сбое Telegram останавливается до следующего запуска.
+// Возвращает ['sent' => отправлено, 'left' => осталось] или left = -1, если уже идёт другой запуск.
+function tg_flush(array $config, ?callable $post = null): array {
+    $dir = $config['log_dir'];
+    if (!is_dir($dir)) { @mkdir($dir, 0700, true); }
+    $lock = @fopen("$dir/tg-outbox.lock", 'c');
+    if (!$lock || !flock($lock, LOCK_EX | LOCK_NB)) { return ['sent' => 0, 'left' => -1]; }
+    $box  = "$dir/tg-outbox.jsonl";
+    $work = "$dir/tg-outbox.processing.jsonl";   // то, что разбираем сейчас (или осталось с прошлого раза)
+    $sent = 0;
+    $rest = [];
+    foreach ([false, true] as $takeBox) {
+        if ($takeBox) {
+            if (!file_exists($box)) { break; }
+            rename($box, $work);   // атомарно: новые заявки пишутся уже в новый tg-outbox.jsonl
+        }
+        if (!file_exists($work)) { continue; }
+        $failed = false;
+        foreach (file($work, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $line) {
+            $item = json_decode($line, true);
+            if (!is_array($item) || !isset($item['text'])) { continue; }
+            if ($failed) { $rest[] = $line; continue; }
+            if (time() - (int) ($item['queued'] ?? 0) > TG_MAX_AGE) {
+                log_line($config, 'tg-errors.jsonl', ['dropped' => 'старше суток', 'queued' => (int) ($item['queued'] ?? 0)]);
+                continue;
+            }
+            if (tg_send($config, (string) $item['text'], $post)) { $sent++; } else { $failed = true; $rest[] = $line; }
+        }
+        if ($rest) { file_put_contents($work, implode("\n", $rest) . "\n"); break; }
+        unlink($work);
+    }
+    $left = count($rest) + (file_exists($box) ? count(file($box, FILE_SKIP_EMPTY_LINES) ?: []) : 0);
+    flock($lock, LOCK_UN);
+    fclose($lock);
+    return ['sent' => $sent, 'left' => $left];
+}
