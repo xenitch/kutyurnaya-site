@@ -1,8 +1,9 @@
 <?php
-// Приём заявок с kutyurnaya.ru: заявка → amoCRM (контакт + сделка) → переход на оплату.
+// Приём заявок с kutyurnaya.ru: заявка → amoCRM (контакт + сделка) → сообщение в чат организаторов → переход на оплату.
 declare(strict_types=1);
 
 $config = require dirname(__DIR__, 2) . '/kutyurnaya-config.php';
+require dirname(__DIR__, 2) . '/kutyurnaya-app/lib.php';   // amo(), log_line(), tg_send(), тексты бота
 
 const AMO_FIELD_PHONE    = 705935;
 const AMO_FIELD_TELEGRAM = 705981;
@@ -17,32 +18,6 @@ function fail_page(string $message, int $code = 400): never {
        . "<meta name=\"robots\" content=\"noindex\"><title>Заявка не отправлена — Кутюрная</title><link rel=\"stylesheet\" href=\"/style.css\"></head>"
        . "<body><main class=\"note\"><h1>Заявка не отправлена</h1><p>$m</p><p><a href=\"javascript:history.back()\">← Вернуться к форме</a></p></main></body></html>";
     exit;
-}
-
-function log_line(array $config, string $file, array $data): void {
-    $dir = $config['log_dir'];
-    if (!is_dir($dir)) { @mkdir($dir, 0700, true); }
-    $data['ts'] = date('c');
-    @file_put_contents("$dir/$file", json_encode($data, JSON_UNESCAPED_UNICODE) . "\n", FILE_APPEND | LOCK_EX);
-}
-
-function amo(array $config, string $method, string $path, ?array $body = null): array {
-    $ch = curl_init("https://{$config['amo_subdomain']}.amocrm.ru/api/v4$path");
-    curl_setopt_array($ch, [
-        CURLOPT_CUSTOMREQUEST  => $method,
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT        => 15,
-        CURLOPT_HTTPHEADER     => ['Authorization: Bearer ' . $config['amo_token'], 'Content-Type: application/json'],
-    ]);
-    if ($body !== null) { curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body, JSON_UNESCAPED_UNICODE)); }
-    $raw  = curl_exec($ch);
-    $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $err  = curl_error($ch);
-    curl_close($ch);
-    if ($raw === false || $code >= 400) {
-        throw new RuntimeException("amoCRM $method $path → HTTP $code $err " . substr((string) $raw, 0, 500));
-    }
-    return $code === 204 || $raw === '' ? [] : (json_decode($raw, true) ?? []);
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -90,6 +65,7 @@ log_line($config, 'registrations.jsonl', $reg);   // копия заявки н�
 $info = "Имя: $name\nНомер телефона: $phone\nТелеграм: " . ($telegram !== '-' ? $telegram : 'нет')
       . "\nРассылка анонсов: " . ($newsletter ? 'согласие дано ' . date('d.m.Y H:i') : 'нет');
 
+$notice = MSG_AMO_FAILED;   // в чат организаторов; без персональных данных
 try {
     // Ищем существующий контакт по телефону (последние 10 цифр), чтобы не плодить дубли
     $contactId = null;
@@ -130,10 +106,12 @@ try {
     ];
     $res = amo($config, 'POST', '/leads/complex', [$lead]);
     log_line($config, 'amo-ok.jsonl', ['event' => $eventKey, 'lead_id' => $res[0]['id'] ?? null, 'contact_existing' => (bool) $contactId]);
+    $notice = msg_new_lead($config, $event['title'], isset($res[0]['id']) ? (int) $res[0]['id'] : null, (bool) $contactId);
 } catch (Throwable $e) {
     // Заявка уже сохранена в registrations.jsonl; человека не задерживаем
     log_line($config, 'amo-errors.jsonl', ['event' => $eventKey, 'phone' => $phone, 'error' => $e->getMessage()]);
 }
+tg_send($config, $notice);  // не дольше 4 с; при сбое Telegram — только запись в tg-errors.jsonl
 
 $target = $event['payment_url'] !== '' ? $event['payment_url'] : '/spasibo/';
 header('Location: ' . $target, true, 303);

@@ -6,12 +6,18 @@ return [
     'amo_token'      => 'ДОЛГОСРОЧНЫЙ_ТОКЕН',     // amoCRM → амоМаркет → интеграция «Сайт kutyurnaya.ru» → Ключи
     'pipeline_id'    => 10976106,                 // «Покупка с сайта»
     'status_id'      => 86289826,                 // «заявка с сайта»
+    'status_paid'    => 86289814,                 // «оплатил»
+    'status_ticket'  => 86289818,                 // «отправили билет»
+    'telegram_token'     => 'ТОКЕН_БОТА',         // @kutyurnaya_bot, локально: secrets/telegram-bot-token.md
+    'telegram_chat_id'   => -1003787864393,       // чат организаторов
+    'telegram_thread_id' => 5789,                 // ветка «Продажи»
     'log_dir'        => __DIR__ . '/kutyurnaya-data',
     // Мероприятия, на которые открыта регистрация. Ключ — значение скрытого поля event в форме.
     'events' => [
         'pokazy-2026-11-22' => [
             'title'       => 'История модных показов · 22 ноября',
             'price'       => 2000,
+            'date'        => '2026-11-22',          // до этого дня включительно — утренний отчёт
             'payment_url' => 'https://tochkaplace.com/ia/5530e5c3-9542-4ccc-be1d-18cec6d0b21d', // интернет-эквайринг Точки
             'open'        => true,
         ],

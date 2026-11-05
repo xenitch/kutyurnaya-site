@@ -43,3 +43,12 @@ GitHub Pages для домена больше не используется.
     scp api/register.php ct757322@vh460.timeweb.ru:public_html/api/
     scp test-form/index.html ct757322@vh460.timeweb.ru:public_html/test-form/
     scp spasibo/index.html ct757322@vh460.timeweb.ru:public_html/spasibo/
+
+## Бот организаторов (@kutyurnaya_bot)
+
+- Новая заявка с сайта → сообщение в ветку «Продажи» чата организаторов (без личных данных, ссылка на сделку).
+- Каждый день в 09:00 по Кемерову — отчёт о занятых местах (`server/daily-report.php`, cron в панели Timeweb `0 5 * * *`),
+  пока у мероприятия `open = true` и не прошла его `date`.
+- Проверка вхолостую: `ssh … "php ~/kutyurnaya-app/daily-report.php --dry-run"`. Ошибки: `~/kutyurnaya-data/tg-errors.jsonl`, `report-errors.jsonl`.
+- После лекции сделки переводить в «пришел» или закрывать, иначе они засчитаются на следующую встречу.
+- Выкладка всего: `bash server/deploy.sh`; тесты: `bash server/tests/run-remote.sh`.
