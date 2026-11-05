@@ -1,6 +1,8 @@
 #!/bin/bash
 # Выкладка сайта и бота на хостинг Timeweb. Запуск из любой папки: bash server/deploy.sh
 # Токены читаются из локальных secrets/ и попадают только в ~/kutyurnaya-config.php (600).
+# Конфиг на сервере каждый раз собирается заново из server/config.example.php: мероприятия правим там.
+# Всё сначала кладётся в ~/kutyurnaya-staging и проверяется php -l; на живые места файлы встают только после проверки.
 set -e
 S="$(cd "$(dirname "$0")/.." && pwd)"
 SEC=/Users/xenitch/patterns/Кутюрная/secrets
@@ -14,11 +16,23 @@ TMP=$(mktemp)
 trap 'rm -f "$TMP"' EXIT   # временный конфиг с токенами удаляется при любом исходе
 sed -e "s|'ДОЛГОСРОЧНЫЙ_ТОКЕН'|'$AMO'|" -e "s|'ТОКЕН_БОТА'|'$TG'|" "$S/server/config.example.php" > "$TMP"
 ssh $K $H true || { echo "СТОП: хостинг не отвечает по SSH — ничего не выложено"; exit 1; }
-ssh $K $H 'mkdir -p ~/kutyurnaya-app ~/public_html/api ~/public_html/privacy ~/public_html/soglasie ~/public_html/soglasie-rassylka ~/public_html/spasibo'
-scp $K -q "$TMP" $H:kutyurnaya-config.php
-scp $K -q "$S/server/lib.php" "$S/server/daily-report.php" $H:kutyurnaya-app/
-scp $K -q "$S/api/register.php" $H:public_html/api/
-scp $K -q "$S/index.html" "$S/style.css" $H:public_html/
-for d in privacy soglasie soglasie-rassylka spasibo; do scp $K -q "$S/$d/index.html" $H:public_html/$d/; done
-ssh $K $H 'chmod 600 ~/kutyurnaya-config.php; for f in ~/kutyurnaya-config.php ~/kutyurnaya-app/lib.php ~/kutyurnaya-app/daily-report.php ~/public_html/api/register.php; do php -l $f | head -1; done'
+
+ssh $K $H 'umask 077; rm -rf ~/kutyurnaya-staging && mkdir -p ~/kutyurnaya-staging/app ~/kutyurnaya-staging/site/api ~/kutyurnaya-staging/site/privacy ~/kutyurnaya-staging/site/soglasie ~/kutyurnaya-staging/site/soglasie-rassylka ~/kutyurnaya-staging/site/spasibo'
+scp $K -q "$TMP" $H:kutyurnaya-staging/kutyurnaya-config.php
+scp $K -q "$S/server/lib.php" "$S/server/daily-report.php" $H:kutyurnaya-staging/app/
+scp $K -q "$S/api/register.php" $H:kutyurnaya-staging/site/api/
+scp $K -q "$S/index.html" "$S/style.css" $H:kutyurnaya-staging/site/
+for d in privacy soglasie soglasie-rassylka spasibo; do scp $K -q "$S/$d/index.html" $H:kutyurnaya-staging/site/$d/; done
+
+ssh $K $H 'set -e; cd ~/kutyurnaya-staging
+  for f in kutyurnaya-config.php app/lib.php app/daily-report.php site/api/register.php; do php -l $f >/dev/null || { echo "СТОП: ошибка синтаксиса в $f — живой сайт не тронут"; exit 1; }; done
+  chmod 600 kutyurnaya-config.php; chmod 644 app/*.php site/api/register.php site/*.html site/*.css site/*/index.html
+  mkdir -p ~/kutyurnaya-app ~/public_html/api ~/public_html/privacy ~/public_html/soglasie ~/public_html/soglasie-rassylka ~/public_html/spasibo
+  mv -f kutyurnaya-config.php ~/kutyurnaya-config.php
+  mv -f app/lib.php app/daily-report.php ~/kutyurnaya-app/
+  mv -f site/api/register.php ~/public_html/api/register.php
+  mv -f site/index.html site/style.css ~/public_html/
+  for d in privacy soglasie soglasie-rassylka spasibo; do mv -f site/$d/index.html ~/public_html/$d/index.html; done
+  cd ~ && rm -rf ~/kutyurnaya-staging
+  echo "синтаксис: ок"'
 echo "ВЫЛОЖЕНО"

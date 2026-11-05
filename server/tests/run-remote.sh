@@ -4,7 +4,8 @@ set -e
 cd "$(dirname "$0")/../.."
 K="-o BatchMode=yes -o ConnectTimeout=20 -o IdentitiesOnly=yes -i $HOME/.ssh/kutyurnaya_timeweb"
 H=ct757322@vh460.timeweb.ru
-ssh $K $H 'mkdir -p ~/kutyurnaya-app/tests'
-scp $K -q server/lib.php $H:kutyurnaya-app/
-scp $K -q server/tests/run.php $H:kutyurnaya-app/tests/
-ssh $K $H 'php -l ~/kutyurnaya-app/lib.php >/dev/null && php ~/kutyurnaya-app/tests/run.php'
+# Отдельная папка: живой ~/kutyurnaya-app/lib.php (его подключает форма) тесты не трогают.
+ssh $K $H 'rm -rf ~/kutyurnaya-test && mkdir -p ~/kutyurnaya-test/tests'
+scp $K -q server/lib.php $H:kutyurnaya-test/
+scp $K -q server/tests/run.php $H:kutyurnaya-test/tests/
+ssh $K $H 'php -l ~/kutyurnaya-test/lib.php >/dev/null && php ~/kutyurnaya-test/tests/run.php'

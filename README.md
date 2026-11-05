@@ -30,19 +30,19 @@ GitHub Pages для домена больше не используется.
 ## Регистрация на встречи → amoCRM
 
 - Форма на странице шлёт POST на `/api/register.php` (PHP 8.2 на хостинге).
-- Скрипт проверяет поля, сохраняет копию заявки в `~/kutyurnaya-data/registrations.jsonl`, ищет контакт по почте,
+- Скрипт проверяет поля, сохраняет копию заявки в `~/kutyurnaya-data/registrations.jsonl`, ищет контакт по телефону,
   создаёт сделку с контактом в воронке «Покупка с сайта», этап «заявка с сайта», и перенаправляет на `payment_url`
   мероприятия (если пусто — на `/spasibo/`). Сбой amoCRM не блокирует человека: ошибка пишется в `amo-errors.jsonl`.
-- Конфиг с токеном и списком мероприятий — только на хостинге: `~/kutyurnaya-config.php` (права 600),
-  образец в `server/config.example.php`. Открыть регистрацию = добавить мероприятие в `events` с `open => true`.
+- Конфиг с токенами живёт только на хостинге: `~/kutyurnaya-config.php` (права 600). Его каждый раз собирает
+  `server/deploy.sh` из `server/config.example.php` + токенов из локальной папки secrets/, поэтому **мероприятия правим
+  в `server/config.example.php`** (открыть регистрацию = мероприятие в `events` с `open => true` и `date`), затем
+  `bash server/deploy.sh`. Правки прямо на сервере следующая выкладка сотрёт.
 - Токен amoCRM: долгосрочный, интеграция «Сайт kutyurnaya.ru» (внешняя). Перевыпустить до окончания срока.
 - `/test-form/` — тестовая страница формы (noindex), `/spasibo/` — страница после заявки.
 
-Загрузка скрипта и страниц:
-
-    scp api/register.php ct757322@vh460.timeweb.ru:public_html/api/
-    scp test-form/index.html ct757322@vh460.timeweb.ru:public_html/test-form/
-    scp spasibo/index.html ct757322@vh460.timeweb.ru:public_html/spasibo/
+Выкладка — только `bash server/deploy.sh`: форма `api/register.php` подключает `~/kutyurnaya-app/lib.php`, и залитая
+отдельно без него перестанет работать. Скрипт выкладывает страницы, форму, бота и конфиг; картинки, шрифты, иконки и
+`.htaccess` по-прежнему заливаются вручную через `scp`.
 
 ## Бот организаторов (@kutyurnaya_bot)
 
