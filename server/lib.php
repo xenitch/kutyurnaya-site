@@ -75,3 +75,27 @@ function msg_new_lead(array $config, string $title, ?int $leadId, bool $existing
     if ($existing) { $lines[] = 'контакт уже был в базе'; }
     return implode("\n", $lines);
 }
+
+// Мероприятия, по которым шлём утренний отчёт: регистрация открыта и день лекции не прошёл.
+function report_events(array $events, string $today): array {
+    return array_filter($events, fn(array $e): bool => !empty($e['open']) && isset($e['date']) && $e['date'] >= $today);
+}
+
+// Число сделок воронки в статусе; amoCRM отдаёт максимум 250 за раз.
+function amo_count_leads(array $config, int $statusId, ?callable $amoFn = null): int {
+    $amoFn ??= 'amo';
+    $p = (int) $config['pipeline_id'];
+    $n = 0;
+    for ($page = 1; $page <= 40; $page++) {
+        $res = $amoFn($config, 'GET', "/leads?filter[statuses][0][pipeline_id]=$p&filter[statuses][0][status_id]=$statusId&limit=250&page=$page");
+        $got = count($res['_embedded']['leads'] ?? []);
+        $n += $got;
+        if ($got < 250) { break; }
+    }
+    return $n;
+}
+
+function msg_report(string $title, int $paid, int $ticket, int $waiting): string {
+    return "☀️ $title\nЗанято мест: " . ($paid + $ticket)
+         . "\n· оплатили, билет ещё не отправлен: $paid\n· билет отправлен: $ticket\nЖдут оплаты: $waiting";
+}

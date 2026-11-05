@@ -56,7 +56,35 @@ check('msg_new_lead: контакт уже был', msg_new_lead($cfg, 'Т', 5, 
 check('msg_new_lead: нет id сделки — без ссылки', msg_new_lead($cfg, 'Т', null, false) === '🆕 Новая заявка · Т');
 check('MSG_AMO_FAILED', MSG_AMO_FAILED === '⚠️ Заявка с сайта не попала в amoCRM, копия сохранена на хостинге. Напишите Claude, чтобы перенести её вручную.');
 
-// --- (Task 2 добавляет тесты отчёта перед этой строкой) ---
+// --- отчёт ---
+$events = [
+    'a' => ['title' => 'А', 'open' => true,  'date' => '2026-11-22'],
+    'b' => ['title' => 'Б', 'open' => false, 'date' => '2026-11-30'],
+    'c' => ['title' => 'В', 'open' => true],
+    'd' => ['title' => 'Г', 'open' => true,  'date' => '2026-12-05'],
+];
+check('report_events: до лекции', array_keys(report_events($events, '2026-11-05')) === ['a', 'd']);
+check('report_events: в день лекции ещё приходит', array_keys(report_events($events, '2026-11-22')) === ['a', 'd']);
+check('report_events: на следующий день — нет', array_keys(report_events($events, '2026-11-23')) === ['d']);
+check('report_events: без date и закрытые не берутся', report_events(['c' => $events['c'], 'b' => $events['b']], '2026-11-01') === []);
+
+$calls = [];
+$fakeAmo = function (array $c, string $m, string $path) use (&$calls): array {
+    $calls[] = $path;
+    parse_str((string) parse_url($path, PHP_URL_QUERY), $q);
+    $sizes = [1 => 250, 2 => 250, 3 => 7];
+    $n = $sizes[(int) $q['page']] ?? 0;
+    return $n ? ['_embedded' => ['leads' => array_fill(0, $n, ['id' => 1])]] : [];
+};
+check('amo_count_leads: обходит все страницы', amo_count_leads($cfg, 86289814, $fakeAmo) === 507);
+check('amo_count_leads: три запроса', count($calls) === 3);
+check('amo_count_leads: фильтр по воронке и статусу',
+    str_contains($calls[0], 'filter[statuses][0][pipeline_id]=10976106') && str_contains($calls[0], 'filter[statuses][0][status_id]=86289814')
+    && str_contains($calls[0], 'limit=250') && str_contains($calls[0], 'page=1'));
+check('amo_count_leads: пустой статус (204) → 0', amo_count_leads($cfg, 1, fn() => []) === 0);
+
+check('msg_report', msg_report('История модных показов · 22 ноября', 6, 12, 4)
+    === "☀️ История модных показов · 22 ноября\nЗанято мест: 18\n· оплатили, билет ещё не отправлен: 6\n· билет отправлен: 12\nЖдут оплаты: 4");
 
 array_map('unlink', glob("$logDir/*") ?: []);
 @rmdir($logDir);
