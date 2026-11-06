@@ -169,9 +169,10 @@ function tickets_word(int $n): string {
     return "$n $w";
 }
 
-// Тариф мероприятия по ключу из формы. Нет ключа (старая закэшированная главная) — «Экземпляр».
+// Тариф мероприятия по ключу из формы. Поля нет совсем (старая закэшированная главная) — «Экземпляр»;
+// пустое поле (скрипт /registraciya/ не сработал) — ошибка, а не тихая подмена тарифа.
 function pick_tariff(array $event, ?string $key): ?array {
-    $key = ($key === null || $key === '') ? 'ekzemplyar' : $key;
+    $key ??= 'ekzemplyar';
     $t = $event['tariffs'][$key] ?? null;
     return is_array($t) ? $t + ['key' => $key] : null;
 }

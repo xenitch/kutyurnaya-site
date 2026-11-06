@@ -107,7 +107,7 @@ $ev = ['tariffs' => [
 ]];
 check('pick_tariff: по ключу', pick_tariff($ev, 'para') === ['title' => 'Парный тираж', 'tickets' => 2, 'price' => 3600, 'payment_url' => 'u2', 'key' => 'para']);
 check('pick_tariff: нет ключа → Экземпляр', (pick_tariff($ev, null)['key'] ?? null) === 'ekzemplyar');
-check('pick_tariff: пустой ключ → Экземпляр', (pick_tariff($ev, '')['key'] ?? null) === 'ekzemplyar');
+check('pick_tariff: пустой ключ (скрипт страницы не сработал) → null', pick_tariff($ev, '') === null);
 check('pick_tariff: неизвестный → null', pick_tariff($ev, 'vip') === null);
 check('pick_tariff: у мероприятия нет тарифов → null', pick_tariff([], 'para') === null);
 
