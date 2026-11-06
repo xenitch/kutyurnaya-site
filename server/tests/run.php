@@ -97,6 +97,18 @@ check('msg_report: в билетах', msg_report('История модных �
         ['leads' => 4, 'tickets' => 6], ['leads' => 7, 'tickets' => 12], ['leads' => 3, 'tickets' => 4])
     === "☀️ История модных показов · 22 ноября\nЗанято мест: 18 (заявок: 11)\n· оплатили, билет ещё не отправлен: 6\n· билет отправлен: 12\nЖдут оплаты: 4");
 
+// --- надёжность запросов к amoCRM ---
+$o = amo_curl_options($cfg + ['amo_token' => 't'], 'GET');
+check('amo: HTTP/1.1 (HTTP/2 у amoCRM рвётся: «HTTP2 framing layer»)', ($o[CURLOPT_HTTP_VERSION] ?? null) === CURL_HTTP_VERSION_1_1);
+check('amo: метод и таймаут', $o[CURLOPT_CUSTOMREQUEST] === 'GET' && $o[CURLOPT_TIMEOUT] === 15);
+$n = 0;
+$r = with_retries(function () use (&$n) { $n++; if ($n < 3) { throw new RuntimeException('HTTP 0'); } return 'ок'; }, 3, 0);
+check('with_retries: третья попытка удалась', $r === 'ок' && $n === 3);
+$n = 0;
+try { with_retries(function () use (&$n) { $n++; throw new RuntimeException('всегда'); }, 3, 0); $thrown = false; }
+catch (RuntimeException $e) { $thrown = $e->getMessage() === 'всегда'; }
+check('with_retries: после трёх неудач пробрасывает ошибку', $thrown && $n === 3);
+
 // --- тарифы ---
 foreach ([1 => '1 билет', 2 => '2 билета', 4 => '4 билета', 5 => '5 билетов', 11 => '11 билетов', 12 => '12 билетов', 21 => '21 билет', 22 => '22 билета', 25 => '25 билетов'] as $n => $w) {
     check("tickets_word($n)", tickets_word($n) === $w);

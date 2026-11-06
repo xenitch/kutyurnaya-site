@@ -13,14 +13,28 @@ function log_line(array $config, string $file, array $data): void {
     @file_put_contents("$dir/$file", json_encode($data, JSON_UNESCAPED_UNICODE) . "\n", FILE_APPEND | LOCK_EX);
 }
 
-function amo(array $config, string $method, string $path, ?array $body = null): array {
-    $ch = curl_init("https://{$config['amo_subdomain']}.amocrm.ru/api/v4$path");
-    curl_setopt_array($ch, [
+// HTTP/1.1: по HTTP/2 соединение с amoCRM с хостинга иногда рвётся («Error in the HTTP2 framing layer»).
+function amo_curl_options(array $config, string $method): array {
+    return [
         CURLOPT_CUSTOMREQUEST  => $method,
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT        => 15,
+        CURLOPT_HTTP_VERSION   => CURL_HTTP_VERSION_1_1,
         CURLOPT_HTTPHEADER     => ['Authorization: Bearer ' . $config['amo_token'], 'Content-Type: application/json'],
-    ]);
+    ];
+}
+
+// Повторяет $fn до $tries раз с паузой $pauseSec; последняя ошибка пробрасывается.
+function with_retries(callable $fn, int $tries, int $pauseSec) {
+    for ($i = 1; ; $i++) {
+        try { return $fn(); }
+        catch (Throwable $e) { if ($i >= $tries) { throw $e; } if ($pauseSec > 0) { sleep($pauseSec); } }
+    }
+}
+
+function amo(array $config, string $method, string $path, ?array $body = null): array {
+    $ch = curl_init("https://{$config['amo_subdomain']}.amocrm.ru/api/v4$path");
+    curl_setopt_array($ch, amo_curl_options($config, $method));
     if ($body !== null) { curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body, JSON_UNESCAPED_UNICODE)); }
     $raw  = curl_exec($ch);
     $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
