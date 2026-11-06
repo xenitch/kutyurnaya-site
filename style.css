@@ -122,7 +122,6 @@ a:hover { color: var(--gold); }
 .tariff--accent { border-color: var(--accent); }
 .tariff--accent .tariff-badge, .tariff--accent .tariff-btn { background: var(--accent); border-color: var(--accent); }
 .tariff--accent .tariff-btn:hover { background: var(--paper); color: var(--accent); }
-.tariff-note { margin: 1.25rem 0 0; font-size: 0.95rem; color: var(--muted); }
 .chosen-tariff { margin: 1rem 0 0.2rem; font-variant-caps: all-small-caps; letter-spacing: 0.1em; font-size: 1.15rem; }
 .back-link { margin: 0 0 0.5rem; font-size: 0.95rem; }
 
