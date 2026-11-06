@@ -18,8 +18,7 @@ try {
     // до 3 попыток с паузой 20 с: amoCRM иногда обрывает соединение
     $text = with_retries(fn(): string => msg_report(
         implode(' + ', array_column($events, 'title')),
-        amo_count_tickets($config, (int) $config['status_paid']),
-        amo_count_tickets($config, (int) $config['status_ticket']),
+        sum_counts(amo_count_tickets($config, (int) $config['status_paid']), amo_count_tickets($config, (int) $config['status_ticket'])),
         amo_count_tickets($config, (int) $config['status_id']),
     ), 3, 20);
 } catch (Throwable $e) {

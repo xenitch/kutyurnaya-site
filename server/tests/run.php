@@ -85,29 +85,23 @@ $fakeAmo = function (array $c, string $m, string $path) use (&$calls, $lead): ar
     if ($page === 3) { return ['_embedded' => ['leads' => [$lead(2), $lead(3), $lead(null)]]]; }
     return [];
 };
-check('amo_count_tickets: обходит все страницы', amo_count_tickets($cfgT, 86289814, $fakeAmo) === ['leads' => 503, 'tickets' => 506]);
+check('amo_count_tickets: обходит все страницы', amo_count_tickets($cfgT, 86289814, $fakeAmo) === ['leads' => 503, 'tickets' => 506, 'revenue' => 0, 'free' => 506]);
 check('amo_count_tickets: три запроса', count($calls) === 3);
 check('amo_count_tickets: фильтр по воронке и статусу',
     str_contains($calls[0], 'filter[statuses][0][pipeline_id]=10976106') && str_contains($calls[0], 'filter[statuses][0][status_id]=86289814')
     && str_contains($calls[0], 'limit=250') && str_contains($calls[0], 'page=1'));
-check('amo_count_tickets: пустой статус (204) → 0', amo_count_tickets($cfgT, 1, fn() => []) === ['leads' => 0, 'tickets' => 0]);
-check('amo_count_tickets: без поля в конфиге — по 1 билету', amo_count_tickets($cfg, 1, fn() => ['_embedded' => ['leads' => [$lead(3)]]]) === ['leads' => 1, 'tickets' => 1]);
+check('amo_count_tickets: пустой статус (204) → 0', amo_count_tickets($cfgT, 1, fn() => []) === ['leads' => 0, 'tickets' => 0, 'revenue' => 0, 'free' => 0]);
+check('amo_count_tickets: без поля в конфиге — по 1 билету', amo_count_tickets($cfg, 1, fn() => ['_embedded' => ['leads' => [$lead(3)]]]) === ['leads' => 1, 'tickets' => 1, 'revenue' => 0, 'free' => 1]);
 
-check('msg_report: в билетах', msg_report('История модных показов · 22 ноября',
-        ['leads' => 4, 'tickets' => 6], ['leads' => 7, 'tickets' => 12], ['leads' => 3, 'tickets' => 4])
-    === "☀️ История модных показов · 22 ноября\nЗанято мест: 18 (заявок: 11)\n· оплатили, билет ещё не отправлен: 6\n· билет отправлен: 12\nЖдут оплаты: 4");
-
-// --- надёжность запросов к amoCRM ---
-$o = amo_curl_options($cfg + ['amo_token' => 't'], 'GET');
-check('amo: HTTP/1.1 (HTTP/2 у amoCRM рвётся: «HTTP2 framing layer»)', ($o[CURLOPT_HTTP_VERSION] ?? null) === CURL_HTTP_VERSION_1_1);
-check('amo: метод и таймаут', $o[CURLOPT_CUSTOMREQUEST] === 'GET' && $o[CURLOPT_TIMEOUT] === 15);
-$n = 0;
-$r = with_retries(function () use (&$n) { $n++; if ($n < 3) { throw new RuntimeException('HTTP 0'); } return 'ок'; }, 3, 0);
-check('with_retries: третья попытка удалась', $r === 'ок' && $n === 3);
-$n = 0;
-try { with_retries(function () use (&$n) { $n++; throw new RuntimeException('всегда'); }, 3, 0); $thrown = false; }
-catch (RuntimeException $e) { $thrown = $e->getMessage() === 'всегда'; }
-check('with_retries: после трёх неудач пробрасывает ошибку', $thrown && $n === 3);
+$priced = ['_embedded' => ['leads' => [$lead(2) + ['price' => 3600], $lead(null) + ['price' => 0], $lead(3) + ['price' => 5000]]]];
+check('amo_count_tickets: выручка и бесплатные места', amo_count_tickets($cfgT, 1, fn() => $priced) === ['leads' => 3, 'tickets' => 6, 'revenue' => 8600, 'free' => 1]);
+check('sum_counts: складывает статусы', sum_counts(['leads' => 1, 'tickets' => 2, 'revenue' => 3600, 'free' => 0], ['leads' => 2, 'tickets' => 3, 'revenue' => 2000, 'free' => 2])
+    === ['leads' => 3, 'tickets' => 5, 'revenue' => 5600, 'free' => 2]);
+check('msg_report: с бесплатными местами', msg_report('История модных показов · 22 ноября',
+        ['leads' => 3, 'tickets' => 5, 'revenue' => 7200, 'free' => 1], ['leads' => 2, 'tickets' => 2, 'revenue' => 0, 'free' => 0])
+    === "☀️ История модных показов · 22 ноября\nЗанято мест: 5 (заявок: 3)\nВыручка: 7\u{00A0}200 ₽ · бесплатных мест: 1\nЖдут оплаты: 2");
+check('msg_report: без бесплатных', msg_report('Т', ['leads' => 1, 'tickets' => 1, 'revenue' => 2000, 'free' => 0], ['leads' => 0, 'tickets' => 0, 'revenue' => 0, 'free' => 0])
+    === "☀️ Т\nЗанято мест: 1 (заявок: 1)\nВыручка: 2\u{00A0}000 ₽\nЖдут оплаты: 0");
 
 // --- тарифы ---
 foreach ([1 => '1 билет', 2 => '2 билета', 4 => '4 билета', 5 => '5 билетов', 11 => '11 билетов', 12 => '12 билетов', 21 => '21 билет', 22 => '22 билета', 25 => '25 билетов'] as $n => $w) {

@@ -96,20 +96,30 @@ function report_events(array $events, string $today): array {
     return array_filter($events, fn(array $e): bool => !empty($e['open']) && isset($e['date']) && $e['date'] >= $today);
 }
 
-// Сделки и билеты воронки в статусе; amoCRM отдаёт максимум 250 сделок за раз. Пустое поле «Билетов» = 1.
+// Сделки, билеты, выручка (поле «Бюджет») и бесплатные места (бюджет 0) воронки в статусе.
+// amoCRM отдаёт максимум 250 сделок за раз. Пустое поле «Билетов» = 1.
 function amo_count_tickets(array $config, int $statusId, ?callable $amoFn = null): array {
     $amoFn ??= 'amo';
     $p = (int) $config['pipeline_id'];
     $field = (int) ($config['amo_field_tickets'] ?? 0);
     $leads = 0;
     $tickets = 0;
+    $revenue = 0;
+    $free = 0;
     for ($page = 1; $page <= 40; $page++) {
         $res = $amoFn($config, 'GET', "/leads?filter[statuses][0][pipeline_id]=$p&filter[statuses][0][status_id]=$statusId&limit=250&page=$page");
         $got = $res['_embedded']['leads'] ?? [];
-        foreach ($got as $lead) { $leads++; $tickets += $field ? lead_tickets($lead, $field) : 1; }
+        foreach ($got as $lead) {
+            $t = $field ? lead_tickets($lead, $field) : 1;
+            $price = (int) ($lead['price'] ?? 0);
+            $leads++;
+            $tickets += $t;
+            $revenue += $price;
+            if ($price === 0) { $free += $t; }
+        }
         if (count($got) < 250) { break; }
     }
-    return ['leads' => $leads, 'tickets' => $tickets];
+    return ['leads' => $leads, 'tickets' => $tickets, 'revenue' => $revenue, 'free' => $free];
 }
 
 function lead_tickets(array $lead, int $fieldId): int {
@@ -122,9 +132,17 @@ function lead_tickets(array $lead, int $fieldId): int {
     return 1;
 }
 
-function msg_report(string $title, array $paid, array $ticket, array $waiting): string {
-    return "☀️ $title\nЗанято мест: " . ($paid['tickets'] + $ticket['tickets']) . ' (заявок: ' . ($paid['leads'] + $ticket['leads']) . ')'
-         . "\n· оплатили, билет ещё не отправлен: {$paid['tickets']}\n· билет отправлен: {$ticket['tickets']}\nЖдут оплаты: {$waiting['tickets']}";
+function sum_counts(array ...$counts): array {
+    $sum = ['leads' => 0, 'tickets' => 0, 'revenue' => 0, 'free' => 0];
+    foreach ($counts as $c) { foreach ($sum as $k => $_) { $sum[$k] += (int) ($c[$k] ?? 0); } }
+    return $sum;
+}
+
+// $taken — «оплатил» + «отправили билет», $waiting — «заявка с сайта».
+function msg_report(string $title, array $taken, array $waiting): string {
+    $revenue = 'Выручка: ' . number_format($taken['revenue'], 0, '', "\u{00A0}") . ' ₽'
+             . ($taken['free'] ? " · бесплатных мест: {$taken['free']}" : '');
+    return "☀️ $title\nЗанято мест: {$taken['tickets']} (заявок: {$taken['leads']})\n$revenue\nЖдут оплаты: {$waiting['tickets']}";
 }
 
 // Очередь сообщений в чат: с сервера Telegram доступен через раз, поэтому форма только кладёт
