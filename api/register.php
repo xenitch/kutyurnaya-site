@@ -42,6 +42,8 @@ const NEWSLETTER_CONSENT_VERSION = 'soglasie-rassylka 2026-11-05';
 
 $event = $config['events'][$eventKey] ?? null;
 if (!$event || empty($event['open'])) { fail_page('Регистрация на это мероприятие закрыта.'); }
+$tariff = pick_tariff($event, isset($_POST['tarif']) ? (string) $_POST['tarif'] : null);
+if (!$tariff) { fail_page('Выберите тариф на главной странице.'); }
 if ($name === '' || mb_strlen($name) > 100) { fail_page('Укажите имя.'); }
 $digits = preg_replace('/\D+/', '', $phoneRaw);
 if (strlen($digits) === 11 && $digits[0] === '8') { $digits = '7' . substr($digits, 1); }
@@ -57,12 +59,13 @@ if ($telegram !== '-') {
 }
 if (!$consent) { fail_page('Нужно согласие на обработку персональных данных.'); }
 
-$reg = ['event' => $eventKey, 'name' => $name, 'phone' => $phone, 'telegram' => $telegram,
+$reg = ['event' => $eventKey, 'tarif' => $tariff['key'], 'name' => $name, 'phone' => $phone, 'telegram' => $telegram,
         'newsletter' => $newsletter ? NEWSLETTER_CONSENT_VERSION : false,
         'ip' => $_SERVER['REMOTE_ADDR'] ?? '', 'ua' => substr((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 200)];
 log_line($config, 'registrations.jsonl', $reg);   // копия заявки на хостинге — на случай сбоя amoCRM
 
 $info = "Имя: $name\nНомер телефона: $phone\nТелеграм: " . ($telegram !== '-' ? $telegram : 'нет')
+      . "\nТариф: {$tariff['title']} (" . tickets_word((int) $tariff['tickets']) . ')'
       . "\nРассылка анонсов: " . ($newsletter ? 'согласие дано ' . date('d.m.Y H:i') : 'нет');
 
 $notice = MSG_AMO_FAILED;   // в чат организаторов; без персональных данных
@@ -94,24 +97,25 @@ try {
     ];
 
     $lead = [
-        'name'        => 'Регистрация: ' . $event['title'],
-        'price'       => (int) $event['price'],
+        'name'        => 'Регистрация: ' . $event['title'] . ' · ' . $tariff['title'],
+        'price'       => (int) $tariff['price'],
         'pipeline_id' => (int) $config['pipeline_id'],
         'status_id'   => (int) $config['status_id'],
         'custom_fields_values' => [
             ['field_id' => AMO_FIELD_INFO,   'values' => [['value' => $info]]],
-            ['field_id' => AMO_FIELD_SOURCE, 'values' => [['value' => 'https://kutyurnaya.ru/ · ' . $eventKey]]],
+            ['field_id' => AMO_FIELD_SOURCE, 'values' => [['value' => 'https://kutyurnaya.ru/ · ' . $eventKey . ' · ' . $tariff['key']]]],
+            ['field_id' => (int) $config['amo_field_tickets'], 'values' => [['value' => (int) $tariff['tickets']]]],
         ],
         '_embedded' => ['contacts' => [$contact], 'tags' => $tags],
     ];
     $res = amo($config, 'POST', '/leads/complex', [$lead]);
     log_line($config, 'amo-ok.jsonl', ['event' => $eventKey, 'lead_id' => $res[0]['id'] ?? null, 'contact_existing' => (bool) $contactId]);
-    $notice = msg_new_lead($config, $event['title'], isset($res[0]['id']) ? (int) $res[0]['id'] : null, (bool) $contactId);
+    $notice = msg_new_lead($config, $event['title'], $tariff, isset($res[0]['id']) ? (int) $res[0]['id'] : null, (bool) $contactId);
 } catch (Throwable $e) {
     // Заявка уже сохранена в registrations.jsonl; человека не задерживаем
     log_line($config, 'amo-errors.jsonl', ['event' => $eventKey, 'phone' => $phone, 'error' => $e->getMessage()]);
 }
 tg_queue($config, $notice);  // мгновенно; отправит cron (server/tg-flush.php) — гость Telegram не ждёт
 
-$target = $event['payment_url'] !== '' ? $event['payment_url'] : '/spasibo/';
+$target = $tariff['payment_url'] !== '' ? $tariff['payment_url'] : '/spasibo/';
 header('Location: ' . $target, true, 303);
