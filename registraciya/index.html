@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Регистрация: История модных показов — Кутюрная</title>
+  <link rel="icon" href="/favicon.ico" sizes="16x16 32x32">
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
+  <meta name="theme-color" content="#4a1526">
+  <link rel="stylesheet" href="/style.css?v=20261106a">
+  <noscript><meta http-equiv="refresh" content="0; url=/#register"></noscript>
+  <script>
+    // Тариф из адреса; без тарифа или с неизвестным — назад к карточкам. Цены дублируют server/config.example.php.
+    var TARIFFS = {
+      ekzemplyar: 'Экземпляр · 1 билет · 2000 ₽',
+      para:       'Парный тираж · 2 билета · 3600 ₽',
+      kollekciya: 'Коллекция · 3 билета · 5000 ₽'
+    };
+    var TARIF = new URLSearchParams(location.search).get('tarif');
+    if (!Object.prototype.hasOwnProperty.call(TARIFFS, TARIF)) { location.replace('/#register'); }
+  </script>
+</head>
+<body>
+  <header class="site-header">
+    <p class="site-name"><a href="/">Сообщество «Кутюрная»</a></p>
+    <p class="site-tagline">Мода как искусство: эстетика, смыслы, история&nbsp;·&nbsp;Кемерово</p>
+  </header>
+
+  <main>
+    <section class="note" id="register">
+      <p class="kicker">22 ноября · сбор гостей в&nbsp;13:00</p>
+      <h1>История модных показов</h1>
+      <p class="event-place">ул.&nbsp;Дзержинского, 19, витражный зал Областной научной библиотеки им.&nbsp;В.&nbsp;Д.&nbsp;Фёдорова</p>
+      <p class="chosen-tariff" id="chosen-tariff"></p>
+      <p class="back-link"><a href="/#register">← выбрать другой тариф</a></p>
+      <form class="reg-form" method="post" action="/api/register.php">
+        <input type="hidden" name="event" value="pokazy-2026-11-22">
+        <input type="hidden" name="tarif" id="tarif-field" value="">
+        <label>Имя<input name="name" required maxlength="100" autocomplete="name"></label>
+        <label>Номер телефона<input name="phone" type="tel" required autocomplete="tel" placeholder="+7 900 000-00-00"></label>
+        <label>Телеграм<span class="hint">если нет аккаунта, поставьте прочерк</span><input name="telegram" required maxlength="64" placeholder="@ник"></label>
+        <label class="hp" aria-hidden="true">Сайт<input name="website" tabindex="-1" autocomplete="off"></label>
+        <label class="consent"><input type="checkbox" name="consent" required> <span>Даю <a href="/soglasie/" target="_blank">согласие на&nbsp;обработку персональных данных</a> в&nbsp;соответствии с&nbsp;<a href="/privacy/" target="_blank">политикой обработки персональных данных</a></span></label>
+        <label class="consent"><input type="checkbox" name="newsletter"> <span>Даю <a href="/soglasie-rassylka/" target="_blank">согласие на&nbsp;рассылку</a> анонсов будущих встреч</span></label>
+        <button type="submit">Оплатить</button>
+      </form>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>Кутюрная · Кемерово · <a href="https://t.me/Kutyurnaya">@kutyurnaya</a></p>
+    <p class="legal-links"><a href="/privacy/">Политика обработки персональных данных</a></p>
+  </footer>
+  <script>
+    (function () {
+      if (!TARIFFS[TARIF]) return;
+      document.getElementById('chosen-tariff').textContent = TARIFFS[TARIF];
+      document.getElementById('tarif-field').value = TARIF;
+      var form = document.querySelector('.reg-form');
+      var button = form.querySelector('button[type="submit"]');
+      var label = button.textContent;
+      function reset() { form.classList.remove('is-sending'); button.disabled = false; button.textContent = label; }
+      form.addEventListener('submit', function (e) {
+        if (form.classList.contains('is-sending')) { e.preventDefault(); return; }
+        form.classList.add('is-sending');
+        button.disabled = true;
+        button.textContent = 'Записываем…';
+      });
+      window.addEventListener('pageshow', function (e) { if (e.persisted) reset(); });
+    })();
+  </script>
+</body>
+</html>

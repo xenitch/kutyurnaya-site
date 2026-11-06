@@ -16,7 +16,7 @@
   <link rel="icon" type="image/png" sizes="192x192" href="/icons/favicon-192.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
   <meta name="theme-color" content="#4a1526">
-  <link rel="stylesheet" href="/style.css?v=20261105a">
+  <link rel="stylesheet" href="/style.css?v=20261106a">
 </head>
 <body>
   <header class="site-header">
@@ -29,17 +29,33 @@
       <p class="kicker">22 ноября · сбор гостей в&nbsp;13:00</p>
       <h1>История модных показов</h1>
       <p class="event-place">ул.&nbsp;Дзержинского, 19, витражный зал Областной научной библиотеки им.&nbsp;В.&nbsp;Д.&nbsp;Фёдорова</p>
-      <p class="event-price">Стоимость участия&nbsp;— 2000&nbsp;₽</p>
-      <form class="reg-form" method="post" action="/api/register.php">
-        <input type="hidden" name="event" value="pokazy-2026-11-22">
-        <label>Имя<input name="name" required maxlength="100" autocomplete="name"></label>
-        <label>Номер телефона<input name="phone" type="tel" required autocomplete="tel" placeholder="+7 900 000-00-00"></label>
-        <label>Телеграм<span class="hint">если нет аккаунта, поставьте прочерк</span><input name="telegram" required maxlength="64" placeholder="@ник"></label>
-        <label class="hp" aria-hidden="true">Сайт<input name="website" tabindex="-1" autocomplete="off"></label>
-        <label class="consent"><input type="checkbox" name="consent" required> <span>Даю <a href="/soglasie/" target="_blank">согласие на&nbsp;обработку персональных данных</a> в&nbsp;соответствии с&nbsp;<a href="/privacy/" target="_blank">политикой обработки персональных данных</a></span></label>
-        <label class="consent"><input type="checkbox" name="newsletter"> <span>Даю <a href="/soglasie-rassylka/" target="_blank">согласие на&nbsp;рассылку</a> анонсов будущих встреч</span></label>
-        <button type="submit">Оплатить</button>
-      </form>
+      <div class="tariffs">
+        <article class="tariff">
+          <p class="tariff-badge">Экземпляр</p>
+          <p class="tariff-tickets">1 билет</p>
+          <p class="tariff-price">2000&nbsp;₽</p>
+          <p class="tariff-old">&nbsp;</p>
+          <ul class="tariff-incl"><li>Участие в лекции</li><li>Фуршет с игристым</li><li>Розыгрыш подарков</li></ul>
+          <a class="tariff-btn" href="/registraciya/?tarif=ekzemplyar">Выбрать</a>
+        </article>
+        <article class="tariff tariff--accent">
+          <p class="tariff-badge">Парный тираж</p>
+          <p class="tariff-tickets">2 билета</p>
+          <p class="tariff-price">3600&nbsp;₽</p>
+          <p class="tariff-old"><s>4000&nbsp;₽</s> · выгода 400&nbsp;₽</p>
+          <ul class="tariff-incl"><li>Участие в лекции</li><li>Фуршет с игристым</li><li>Розыгрыш подарков</li></ul>
+          <a class="tariff-btn" href="/registraciya/?tarif=para">Выбрать</a>
+        </article>
+        <article class="tariff">
+          <p class="tariff-badge">Коллекция</p>
+          <p class="tariff-tickets">3 билета</p>
+          <p class="tariff-price">5000&nbsp;₽</p>
+          <p class="tariff-old"><s>6000&nbsp;₽</s> · выгода 1000&nbsp;₽</p>
+          <ul class="tariff-incl"><li>Участие в лекции</li><li>Фуршет с игристым</li><li>Розыгрыш подарков</li></ul>
+          <a class="tariff-btn" href="/registraciya/?tarif=kollekciya">Выбрать</a>
+        </article>
+      </div>
+      <p class="tariff-note">В каждый билет входит участие в&nbsp;лекции, фуршет с&nbsp;игристым и&nbsp;розыгрыш подарков.</p>
     </section>
 
     <p class="fleuron" aria-hidden="true">❦</p>
@@ -63,21 +79,5 @@
     <p>Кутюрная · Кемерово · <a href="https://t.me/Kutyurnaya">@kutyurnaya</a></p>
     <p class="legal-links"><a href="/privacy/">Политика обработки персональных данных</a></p>
   </footer>
-  <script>
-    (function () {
-      var form = document.querySelector('.reg-form');
-      if (!form) return;
-      var button = form.querySelector('button[type="submit"]');
-      var label = button.textContent;
-      function reset() { form.classList.remove('is-sending'); button.disabled = false; button.textContent = label; }
-      form.addEventListener('submit', function (e) {
-        if (form.classList.contains('is-sending')) { e.preventDefault(); return; }
-        form.classList.add('is-sending');
-        button.disabled = true;
-        button.textContent = 'Записываем…';
-      });
-      window.addEventListener('pageshow', function (e) { if (e.persisted) reset(); });
-    })();
-  </script>
 </body>
 </html>
