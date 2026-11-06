@@ -49,11 +49,12 @@ check('tg_send: ошибки пишутся в tg-errors.jsonl', substr_count($l
 check('tg_send: токена нет в журнале', !str_contains($log, 'SECRET-TOKEN'));
 
 // --- тексты ---
-check('msg_new_lead: новая заявка', msg_new_lead($cfg, 'История модных показов · 22 ноября', 31642077, false)
-    === "🆕 Новая заявка · История модных показов · 22 ноября\nhttps://kutyurnaya.amocrm.ru/leads/detail/31642077");
-check('msg_new_lead: контакт уже был', msg_new_lead($cfg, 'Т', 5, true)
-    === "🆕 Новая заявка · Т\nhttps://kutyurnaya.amocrm.ru/leads/detail/5\nконтакт уже был в базе");
-check('msg_new_lead: нет id сделки — без ссылки', msg_new_lead($cfg, 'Т', null, false) === '🆕 Новая заявка · Т');
+$para = ['title' => 'Парный тираж', 'tickets' => 2];
+check('msg_new_lead: с тарифом', msg_new_lead($cfg, 'История модных показов · 22 ноября', $para, 31642077, false)
+    === "🆕 Новая заявка · История модных показов · 22 ноября\nПарный тираж · 2 билета\nhttps://kutyurnaya.amocrm.ru/leads/detail/31642077");
+check('msg_new_lead: контакт уже был', msg_new_lead($cfg, 'Т', $para, 5, true)
+    === "🆕 Новая заявка · Т\nПарный тираж · 2 билета\nhttps://kutyurnaya.amocrm.ru/leads/detail/5\nконтакт уже был в базе");
+check('msg_new_lead: без тарифа и id сделки', msg_new_lead($cfg, 'Т', null, null, false) === '🆕 Новая заявка · Т');
 check('MSG_AMO_FAILED', MSG_AMO_FAILED === '⚠️ Заявка с сайта не попала в amoCRM, копия сохранена на хостинге. Напишите Claude, чтобы перенести её вручную.');
 
 // --- отчёт ---
@@ -68,23 +69,47 @@ check('report_events: в день лекции ещё приходит', array_k
 check('report_events: на следующий день — нет', array_keys(report_events($events, '2026-11-23')) === ['d']);
 check('report_events: без date и закрытые не берутся', report_events(['c' => $events['c'], 'b' => $events['b']], '2026-11-01') === []);
 
+$cfgT = $cfg + ['amo_field_tickets' => 900];
+$lead = fn(?int $t): array => ['id' => 1, 'custom_fields_values' => $t === null ? null : [['field_id' => 900, 'values' => [['value' => $t]]]]];
+check('lead_tickets: значение поля', lead_tickets($lead(3), 900) === 3);
+check('lead_tickets: поле пустое → 1', lead_tickets($lead(null), 900) === 1);
+check('lead_tickets: 0 → 1', lead_tickets($lead(0), 900) === 1);
+check('lead_tickets: чужое поле → 1', lead_tickets($lead(2), 901) === 1);
+
 $calls = [];
-$fakeAmo = function (array $c, string $m, string $path) use (&$calls): array {
+$fakeAmo = function (array $c, string $m, string $path) use (&$calls, $lead): array {
     $calls[] = $path;
     parse_str((string) parse_url($path, PHP_URL_QUERY), $q);
-    $sizes = [1 => 250, 2 => 250, 3 => 7];
-    $n = $sizes[(int) $q['page']] ?? 0;
-    return $n ? ['_embedded' => ['leads' => array_fill(0, $n, ['id' => 1])]] : [];
+    $page = (int) $q['page'];
+    if ($page <= 2) { return ['_embedded' => ['leads' => array_fill(0, 250, $lead(null))]]; }
+    if ($page === 3) { return ['_embedded' => ['leads' => [$lead(2), $lead(3), $lead(null)]]]; }
+    return [];
 };
-check('amo_count_leads: обходит все страницы', amo_count_leads($cfg, 86289814, $fakeAmo) === 507);
-check('amo_count_leads: три запроса', count($calls) === 3);
-check('amo_count_leads: фильтр по воронке и статусу',
+check('amo_count_tickets: обходит все страницы', amo_count_tickets($cfgT, 86289814, $fakeAmo) === ['leads' => 503, 'tickets' => 506]);
+check('amo_count_tickets: три запроса', count($calls) === 3);
+check('amo_count_tickets: фильтр по воронке и статусу',
     str_contains($calls[0], 'filter[statuses][0][pipeline_id]=10976106') && str_contains($calls[0], 'filter[statuses][0][status_id]=86289814')
     && str_contains($calls[0], 'limit=250') && str_contains($calls[0], 'page=1'));
-check('amo_count_leads: пустой статус (204) → 0', amo_count_leads($cfg, 1, fn() => []) === 0);
+check('amo_count_tickets: пустой статус (204) → 0', amo_count_tickets($cfgT, 1, fn() => []) === ['leads' => 0, 'tickets' => 0]);
+check('amo_count_tickets: без поля в конфиге — по 1 билету', amo_count_tickets($cfg, 1, fn() => ['_embedded' => ['leads' => [$lead(3)]]]) === ['leads' => 1, 'tickets' => 1]);
 
-check('msg_report', msg_report('История модных показов · 22 ноября', 6, 12, 4)
-    === "☀️ История модных показов · 22 ноября\nЗанято мест: 18\n· оплатили, билет ещё не отправлен: 6\n· билет отправлен: 12\nЖдут оплаты: 4");
+check('msg_report: в билетах', msg_report('История модных показов · 22 ноября',
+        ['leads' => 4, 'tickets' => 6], ['leads' => 7, 'tickets' => 12], ['leads' => 3, 'tickets' => 4])
+    === "☀️ История модных показов · 22 ноября\nЗанято мест: 18 (заявок: 11)\n· оплатили, билет ещё не отправлен: 6\n· билет отправлен: 12\nЖдут оплаты: 4");
+
+// --- тарифы ---
+foreach ([1 => '1 билет', 2 => '2 билета', 4 => '4 билета', 5 => '5 билетов', 11 => '11 билетов', 12 => '12 билетов', 21 => '21 билет', 22 => '22 билета', 25 => '25 билетов'] as $n => $w) {
+    check("tickets_word($n)", tickets_word($n) === $w);
+}
+$ev = ['tariffs' => [
+    'ekzemplyar' => ['title' => 'Экземпляр', 'tickets' => 1, 'price' => 2000, 'payment_url' => 'u1'],
+    'para'       => ['title' => 'Парный тираж', 'tickets' => 2, 'price' => 3600, 'payment_url' => 'u2'],
+]];
+check('pick_tariff: по ключу', pick_tariff($ev, 'para') === ['title' => 'Парный тираж', 'tickets' => 2, 'price' => 3600, 'payment_url' => 'u2', 'key' => 'para']);
+check('pick_tariff: нет ключа → Экземпляр', (pick_tariff($ev, null)['key'] ?? null) === 'ekzemplyar');
+check('pick_tariff: пустой ключ → Экземпляр', (pick_tariff($ev, '')['key'] ?? null) === 'ekzemplyar');
+check('pick_tariff: неизвестный → null', pick_tariff($ev, 'vip') === null);
+check('pick_tariff: у мероприятия нет тарифов → null', pick_tariff([], 'para') === null);
 
 // --- очередь сообщений ---
 $qDir = "$logDir/q"; $q = $cfg; $q['log_dir'] = $qDir;

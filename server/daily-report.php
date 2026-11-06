@@ -17,9 +17,9 @@ if (!$events) {
 try {
     $text = msg_report(
         implode(' + ', array_column($events, 'title')),
-        amo_count_leads($config, (int) $config['status_paid']),
-        amo_count_leads($config, (int) $config['status_ticket']),
-        amo_count_leads($config, (int) $config['status_id']),
+        amo_count_tickets($config, (int) $config['status_paid']),
+        amo_count_tickets($config, (int) $config['status_ticket']),
+        amo_count_tickets($config, (int) $config['status_id']),
     );
 } catch (Throwable $e) {
     log_line($config, 'report-errors.jsonl', ['error' => $e->getMessage()]);

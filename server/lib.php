@@ -69,8 +69,9 @@ function tg_send(array $config, string $text, ?callable $post = null): bool {
     return $ok;
 }
 
-function msg_new_lead(array $config, string $title, ?int $leadId, bool $existing): string {
+function msg_new_lead(array $config, string $title, ?array $tariff, ?int $leadId, bool $existing): string {
     $lines = ["🆕 Новая заявка · $title"];
+    if ($tariff) { $lines[] = $tariff['title'] . ' · ' . tickets_word((int) $tariff['tickets']); }
     if ($leadId) { $lines[] = "https://{$config['amo_subdomain']}.amocrm.ru/leads/detail/$leadId"; }
     if ($existing) { $lines[] = 'контакт уже был в базе'; }
     return implode("\n", $lines);
@@ -81,23 +82,35 @@ function report_events(array $events, string $today): array {
     return array_filter($events, fn(array $e): bool => !empty($e['open']) && isset($e['date']) && $e['date'] >= $today);
 }
 
-// Число сделок воронки в статусе; amoCRM отдаёт максимум 250 за раз.
-function amo_count_leads(array $config, int $statusId, ?callable $amoFn = null): int {
+// Сделки и билеты воронки в статусе; amoCRM отдаёт максимум 250 сделок за раз. Пустое поле «Билетов» = 1.
+function amo_count_tickets(array $config, int $statusId, ?callable $amoFn = null): array {
     $amoFn ??= 'amo';
     $p = (int) $config['pipeline_id'];
-    $n = 0;
+    $field = (int) ($config['amo_field_tickets'] ?? 0);
+    $leads = 0;
+    $tickets = 0;
     for ($page = 1; $page <= 40; $page++) {
         $res = $amoFn($config, 'GET', "/leads?filter[statuses][0][pipeline_id]=$p&filter[statuses][0][status_id]=$statusId&limit=250&page=$page");
-        $got = count($res['_embedded']['leads'] ?? []);
-        $n += $got;
-        if ($got < 250) { break; }
+        $got = $res['_embedded']['leads'] ?? [];
+        foreach ($got as $lead) { $leads++; $tickets += $field ? lead_tickets($lead, $field) : 1; }
+        if (count($got) < 250) { break; }
     }
-    return $n;
+    return ['leads' => $leads, 'tickets' => $tickets];
 }
 
-function msg_report(string $title, int $paid, int $ticket, int $waiting): string {
-    return "☀️ $title\nЗанято мест: " . ($paid + $ticket)
-         . "\n· оплатили, билет ещё не отправлен: $paid\n· билет отправлен: $ticket\nЖдут оплаты: $waiting";
+function lead_tickets(array $lead, int $fieldId): int {
+    foreach ($lead['custom_fields_values'] ?? [] as $f) {
+        if ((int) ($f['field_id'] ?? 0) === $fieldId) {
+            $v = (int) ($f['values'][0]['value'] ?? 0);
+            return $v >= 1 ? $v : 1;
+        }
+    }
+    return 1;
+}
+
+function msg_report(string $title, array $paid, array $ticket, array $waiting): string {
+    return "☀️ $title\nЗанято мест: " . ($paid['tickets'] + $ticket['tickets']) . ' (заявок: ' . ($paid['leads'] + $ticket['leads']) . ')'
+         . "\n· оплатили, билет ещё не отправлен: {$paid['tickets']}\n· билет отправлен: {$ticket['tickets']}\nЖдут оплаты: {$waiting['tickets']}";
 }
 
 // Очередь сообщений в чат: с сервера Telegram доступен через раз, поэтому форма только кладёт
@@ -145,4 +158,20 @@ function tg_flush(array $config, ?callable $post = null): array {
     flock($lock, LOCK_UN);
     fclose($lock);
     return ['sent' => $sent, 'left' => $left];
+}
+
+function tickets_word(int $n): string {
+    $m10 = $n % 10;
+    $m100 = $n % 100;
+    if ($m10 === 1 && $m100 !== 11) { $w = 'билет'; }
+    elseif ($m10 >= 2 && $m10 <= 4 && ($m100 < 12 || $m100 > 14)) { $w = 'билета'; }
+    else { $w = 'билетов'; }
+    return "$n $w";
+}
+
+// Тариф мероприятия по ключу из формы. Нет ключа (старая закэшированная главная) — «Экземпляр».
+function pick_tariff(array $event, ?string $key): ?array {
+    $key = ($key === null || $key === '') ? 'ekzemplyar' : $key;
+    $t = $event['tariffs'][$key] ?? null;
+    return is_array($t) ? $t + ['key' => $key] : null;
 }
