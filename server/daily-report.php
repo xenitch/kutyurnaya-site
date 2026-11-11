@@ -3,8 +3,8 @@
 // Cron в панели Timeweb: 0 5 * * *  (05:00 МСК = 09:00 Кемерово)
 // --dry-run — напечатать текст и ничего не отправлять. Отправка — через очередь (lib.php: tg_queue/tg_flush).
 declare(strict_types=1);
-require __DIR__ . '/lib.php';
-$config = require dirname(__DIR__) . '/kutyurnaya-config.php';
+require dirname(__DIR__) . '/public_html/.private/lib.php';
+$config = require dirname(__DIR__) . '/public_html/.private/kutyurnaya-config.php';
 
 $dry   = in_array('--dry-run', $argv, true);
 $today = (new DateTimeImmutable('now', new DateTimeZone('Asia/Novokuznetsk')))->format('Y-m-d');

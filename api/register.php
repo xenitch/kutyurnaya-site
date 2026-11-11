@@ -2,8 +2,9 @@
 // Приём заявок с kutyurnaya.ru: заявка → amoCRM (контакт + сделка) → сообщение в чат организаторов → переход на оплату.
 declare(strict_types=1);
 
-$config = require dirname(__DIR__, 2) . '/kutyurnaya-config.php';
-require dirname(__DIR__, 2) . '/kutyurnaya-app/lib.php';   // amo(), log_line(), tg_queue(), тексты бота
+// Настройки и функции — в закрытой папке сайта: с 11.11.2026 PHP сайта на Timeweb не видит файлов вне public_html.
+$config = require dirname(__DIR__) . '/.private/kutyurnaya-config.php';
+require dirname(__DIR__) . '/.private/lib.php';   // amo(), log_line(), tg_queue(), тексты бота
 
 const AMO_FIELD_PHONE    = 705935;
 const AMO_FIELD_TELEGRAM = 705981;

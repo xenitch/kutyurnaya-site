@@ -6,11 +6,37 @@ declare(strict_types=1);
 const MSG_AMO_FAILED    = '⚠️ Заявка с сайта не попала в amoCRM, копия сохранена на хостинге. Напишите Claude, чтобы перенести её вручную.';
 const MSG_REPORT_FAILED = '⚠️ Утренний отчёт не собран: amoCRM не ответил';
 
-function log_line(array $config, string $file, array $data): void {
+// Данные (журналы, очередь) лежат внутри public_html: с 11.11.2026 PHP сайта на Timeweb не видит файлов вне
+// папки сайта. Статичные файлы оттуда отдаются в интернет, поэтому все файлы данных — .php с заглушкой в первой
+// строке: при запросе из браузера PHP выполняет её и ничего не показывает.
+const DATA_GUARD = "<?php http_response_code(404); exit; ?>\n";
+
+function data_file(array $config, string $name): string {
     $dir = $config['log_dir'];
     if (!is_dir($dir)) { @mkdir($dir, 0700, true); }
+    return "$dir/$name.php";
+}
+
+function data_append(string $path, string $line): void {
+    $fh = @fopen($path, 'a');
+    if (!$fh) { return; }
+    flock($fh, LOCK_EX);
+    if (fstat($fh)['size'] === 0) { fwrite($fh, DATA_GUARD); }
+    fwrite($fh, $line . "\n");
+    fflush($fh);
+    flock($fh, LOCK_UN);
+    fclose($fh);
+}
+
+// Строки данных без заглушки.
+function data_lines(string $path): array {
+    $guard = rtrim(DATA_GUARD);
+    return array_values(array_filter(@file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [], fn(string $l): bool => $l !== $guard));
+}
+
+function log_line(array $config, string $file, array $data): void {
     $data['ts'] = date('c');
-    @file_put_contents("$dir/$file", json_encode($data, JSON_UNESCAPED_UNICODE) . "\n", FILE_APPEND | LOCK_EX);
+    data_append(data_file($config, $file), json_encode($data, JSON_UNESCAPED_UNICODE));
 }
 
 // HTTP/1.1: по HTTP/2 соединение с amoCRM с хостинга иногда рвётся («Error in the HTTP2 framing layer»).
@@ -150,20 +176,16 @@ function msg_report(string $title, array $taken, array $waiting): string {
 const TG_MAX_AGE = 86400;
 
 function tg_queue(array $config, string $text): void {
-    $dir = $config['log_dir'];
-    if (!is_dir($dir)) { @mkdir($dir, 0700, true); }
-    @file_put_contents("$dir/tg-outbox.jsonl", json_encode(['text' => $text, 'queued' => time()], JSON_UNESCAPED_UNICODE) . "\n", FILE_APPEND | LOCK_EX);
+    data_append(data_file($config, 'tg-outbox.jsonl'), json_encode(['text' => $text, 'queued' => time()], JSON_UNESCAPED_UNICODE));
 }
 
 // Досылает очередь по порядку; при первом сбое Telegram останавливается до следующего запуска.
 // Возвращает ['sent' => отправлено, 'left' => осталось] или left = -1, если уже идёт другой запуск.
 function tg_flush(array $config, ?callable $post = null): array {
-    $dir = $config['log_dir'];
-    if (!is_dir($dir)) { @mkdir($dir, 0700, true); }
-    $lock = @fopen("$dir/tg-outbox.lock", 'c');
+    $lock = @fopen(data_file($config, 'tg-outbox.lock'), 'c');
     if (!$lock || !flock($lock, LOCK_EX | LOCK_NB)) { return ['sent' => 0, 'left' => -1]; }
-    $box  = "$dir/tg-outbox.jsonl";
-    $work = "$dir/tg-outbox.processing.jsonl";   // то, что разбираем сейчас (или осталось с прошлого раза)
+    $box  = data_file($config, 'tg-outbox.jsonl');
+    $work = data_file($config, 'tg-outbox.processing.jsonl');   // то, что разбираем сейчас (или осталось с прошлого раза)
     $sent = 0;
     $rest = [];
     foreach ([false, true] as $takeBox) {
@@ -173,7 +195,7 @@ function tg_flush(array $config, ?callable $post = null): array {
         }
         if (!file_exists($work)) { continue; }
         $failed = false;
-        foreach (file($work, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $line) {
+        foreach (data_lines($work) as $line) {
             $item = json_decode($line, true);
             if (!is_array($item) || !isset($item['text'])) { continue; }
             if ($failed) { $rest[] = $line; continue; }
@@ -183,10 +205,10 @@ function tg_flush(array $config, ?callable $post = null): array {
             }
             if (tg_send($config, (string) $item['text'], $post)) { $sent++; } else { $failed = true; $rest[] = $line; }
         }
-        if ($rest) { file_put_contents($work, implode("\n", $rest) . "\n"); break; }
+        if ($rest) { file_put_contents($work, DATA_GUARD . implode("\n", $rest) . "\n"); break; }
         unlink($work);
     }
-    $left = count($rest) + (file_exists($box) ? count(file($box, FILE_SKIP_EMPTY_LINES) ?: []) : 0);
+    $left = count($rest) + count(data_lines($box));
     flock($lock, LOCK_UN);
     fclose($lock);
     return ['sent' => $sent, 'left' => $left];

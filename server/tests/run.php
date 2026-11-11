@@ -44,8 +44,10 @@ check('tg_send: Telegram недоступен → false без исключен�
 $badPost = fn(string $url, array $fields): array =>
     ['code' => 400, 'body' => '{"ok":false,"description":"Bad Request: message thread not found"}', 'error' => ''];
 check('tg_send: ответ с ошибкой → false', tg_send($cfg, 'x', $badPost) === false);
-$log = (string) @file_get_contents("$logDir/tg-errors.jsonl");
-check('tg_send: ошибки пишутся в tg-errors.jsonl', substr_count($log, "\n") === 2 && str_contains($log, 'thread not found'));
+$logLines = data_lines("$logDir/tg-errors.jsonl.php");
+$log = implode("\n", $logLines);
+check('tg_send: ошибки пишутся в tg-errors.jsonl.php', count($logLines) === 2 && str_contains($log, 'thread not found'));
+check('данные: первая строка файла — заглушка от чтения из браузера', str_starts_with((string) file_get_contents("$logDir/tg-errors.jsonl.php"), DATA_GUARD));
 check('tg_send: токена нет в журнале', !str_contains($log, 'SECRET-TOKEN'));
 
 // --- тексты ---
@@ -119,16 +121,16 @@ check('pick_tariff: у мероприятия нет тарифов → null', p
 
 // --- очередь сообщений ---
 $qDir = "$logDir/q"; $q = $cfg; $q['log_dir'] = $qDir;
-$box = "$qDir/tg-outbox.jsonl";
+$box = "$qDir/tg-outbox.jsonl.php";
 tg_queue($q, 'первое'); tg_queue($q, 'второе');
-$lines = file($box, FILE_IGNORE_NEW_LINES);
+$lines = data_lines($box);
 check('tg_queue: дописывает строку на сообщение', count($lines) === 2 && json_decode($lines[1], true)['text'] === 'второе');
 
 $texts = [];
 $rec = function (string $url, array $f) use (&$texts): array { $texts[] = $f['text']; return ['code' => 200, 'body' => '{"ok":true}', 'error' => '']; };
 $r = tg_flush($q, $rec);
 check('tg_flush: отправляет всё по порядку', $texts === ['первое', 'второе'] && $r === ['sent' => 2, 'left' => 0]);
-check('tg_flush: очередь пуста после отправки', !file_exists($box) || trim((string) file_get_contents($box)) === '');
+check('tg_flush: очередь пуста после отправки', data_lines($box) === []);
 
 tg_queue($q, 'а'); tg_queue($q, 'б'); tg_queue($q, 'в');
 $n = 0;
@@ -139,26 +141,26 @@ $flaky = function (string $url, array $f) use (&$n): array {
 $r = tg_flush($q, $flaky);
 check('tg_flush: при сбое Telegram останавливается', $n === 2 && $r === ['sent' => 1, 'left' => 2]);
 $queued = fn(): array => array_map(fn($l) => json_decode($l, true)['text'], array_merge(
-    @file("$qDir/tg-outbox.processing.jsonl", FILE_IGNORE_NEW_LINES) ?: [], @file($box, FILE_IGNORE_NEW_LINES) ?: []));
+    data_lines("$qDir/tg-outbox.processing.jsonl.php"), data_lines($box)));
 $left = $queued();
 check('tg_flush: неотправленные остаются в очереди по порядку', $left === ['б', 'в']);
 $texts = [];
 tg_flush($q, $rec);
 check('tg_flush: следующий запуск досылает остаток', $texts === ['б', 'в']);
 
-file_put_contents($box, json_encode(['text' => 'старое', 'queued' => time() - 25 * 3600], JSON_UNESCAPED_UNICODE) . "\n"
+file_put_contents($box, DATA_GUARD . json_encode(['text' => 'старое', 'queued' => time() - 25 * 3600], JSON_UNESCAPED_UNICODE) . "\n"
     . json_encode(['text' => 'свежее', 'queued' => time()], JSON_UNESCAPED_UNICODE) . "\n");
 $texts = [];
 $r = tg_flush($q, $rec);
 check('tg_flush: сообщения старше суток выбрасываются', $texts === ['свежее'] && $r === ['sent' => 1, 'left' => 0]);
 
-file_put_contents("$qDir/tg-outbox.processing.jsonl", json_encode(['text' => 'после сбоя', 'queued' => time()], JSON_UNESCAPED_UNICODE) . "\n");
+file_put_contents("$qDir/tg-outbox.processing.jsonl.php", DATA_GUARD . json_encode(['text' => 'после сбоя', 'queued' => time()], JSON_UNESCAPED_UNICODE) . "\n");
 tg_queue($q, 'новое');
 $texts = [];
 tg_flush($q, $rec);
 check('tg_flush: подбирает файл, оставшийся от прерванного запуска', $texts === ['после сбоя', 'новое']);
 
-$lock = fopen("$qDir/tg-outbox.lock", 'c'); flock($lock, LOCK_EX);
+$lock = fopen("$qDir/tg-outbox.lock.php", 'c'); flock($lock, LOCK_EX);
 tg_queue($q, 'ждёт');
 $called = false;
 $r = tg_flush($q, function () use (&$called) { $called = true; return ['code' => 200, 'body' => '{"ok":true}', 'error' => '']; });
