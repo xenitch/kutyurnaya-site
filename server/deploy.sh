@@ -24,20 +24,20 @@ ssh $K $H true || { echo "СТОП: хостинг не отвечает по SS
 ssh $K $H 'umask 077; rm -rf ~/kutyurnaya-staging && mkdir -p ~/kutyurnaya-staging/app ~/kutyurnaya-staging/site/api ~/kutyurnaya-staging/site/privacy ~/kutyurnaya-staging/site/soglasie ~/kutyurnaya-staging/site/soglasie-rassylka ~/kutyurnaya-staging/site/spasibo ~/kutyurnaya-staging/site/registraciya'
 scp $K -q "$TMP" $H:kutyurnaya-staging/kutyurnaya-config.php
 scp $K -q "$S/server/lib.php" "$S/server/private.htaccess" $H:kutyurnaya-staging/
-scp $K -q "$S/server/daily-report.php" "$S/server/tg-flush.php" $H:kutyurnaya-staging/app/
+scp $K -q "$S/server/daily-report.php" "$S/server/tg-flush.php" "$S/server/health-check.php" $H:kutyurnaya-staging/app/
 scp $K -q "$S/api/register.php" $H:kutyurnaya-staging/site/api/
 scp $K -q "$S/index.html" "$S/style.css" $H:kutyurnaya-staging/site/
 for d in privacy soglasie soglasie-rassylka spasibo registraciya; do scp $K -q "$S/$d/index.html" $H:kutyurnaya-staging/site/$d/; done
 
 ssh $K $H 'set -e; cd ~/kutyurnaya-staging
-  for f in kutyurnaya-config.php lib.php app/daily-report.php app/tg-flush.php site/api/register.php; do php -l $f >/dev/null || { echo "СТОП: ошибка синтаксиса в $f — живой сайт не тронут"; exit 1; }; done
+  for f in kutyurnaya-config.php lib.php app/daily-report.php app/tg-flush.php app/health-check.php site/api/register.php; do php -l $f >/dev/null || { echo "СТОП: ошибка синтаксиса в $f — живой сайт не тронут"; exit 1; }; done
   chmod 600 kutyurnaya-config.php lib.php private.htaccess; chmod 644 app/*.php site/api/register.php site/*.html site/*.css site/*/index.html
   mkdir -p ~/public_html/.private && chmod 700 ~/public_html/.private
   mv -f private.htaccess ~/public_html/.private/.htaccess
   mv -f kutyurnaya-config.php lib.php ~/public_html/.private/
   rm -f ~/kutyurnaya-config.php ~/kutyurnaya-app/lib.php
   mkdir -p ~/kutyurnaya-app ~/public_html/api ~/public_html/privacy ~/public_html/soglasie ~/public_html/soglasie-rassylka ~/public_html/spasibo ~/public_html/registraciya
-  mv -f app/daily-report.php app/tg-flush.php ~/kutyurnaya-app/
+  mv -f app/daily-report.php app/tg-flush.php app/health-check.php ~/kutyurnaya-app/
   mv -f site/api/register.php ~/public_html/api/register.php
   mv -f site/index.html site/style.css ~/public_html/
   for d in privacy soglasie soglasie-rassylka spasibo registraciya; do mv -f site/$d/index.html ~/public_html/$d/index.html; done

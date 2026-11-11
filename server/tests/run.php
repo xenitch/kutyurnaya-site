@@ -105,6 +105,20 @@ check('msg_report: с бесплатными местами', msg_report('Ист
 check('msg_report: без бесплатных', msg_report('Т', ['leads' => 1, 'tickets' => 1, 'revenue' => 2000, 'free' => 0], ['leads' => 0, 'tickets' => 0, 'revenue' => 0, 'free' => 0])
     === "☀️ Т\nЗанято мест: 1 (заявок: 1)\nВыручка: 2\u{00A0}000 ₽\nЖдут оплаты: 0");
 
+// --- проверка сайта ---
+$fine = ['home' => 200, 'reg' => 200, 'form' => ['code' => 303, 'location' => 'https://kutyurnaya.ru/spasibo/']];
+check('health_problems: всё в порядке', health_problems($fine) === []);
+check('health_problems: форма отвечает 500', health_problems(['form' => ['code' => 500, 'location' => '']] + $fine)
+    === ['форма: ответ 500 вместо перехода на /spasibo/']);
+check('health_problems: сайт не отвечает', health_problems(['home' => 0, 'reg' => 0, 'form' => ['code' => 0, 'location' => '']])
+    === ['главная: нет ответа', 'страница регистрации: нет ответа', 'форма: нет ответа']);
+check('health_message: сломалось → тревога', health_message(true, ['форма: ответ 500 вместо перехода на /spasibo/'])
+    === "🚨 Регистрация на сайте kutyurnaya.ru не работает\n· форма: ответ 500 вместо перехода на /spasibo/\nНапишите Claude.");
+check('health_message: первая проверка и сразу сломано → тревога', health_message(null, ['главная: нет ответа']) !== null);
+check('health_message: по-прежнему сломано → молчим', health_message(false, ['главная: нет ответа']) === null);
+check('health_message: починилось → сообщение', health_message(false, []) === '✅ Регистрация на сайте снова работает.');
+check('health_message: всё хорошо и было хорошо → молчим', health_message(true, []) === null && health_message(null, []) === null);
+
 // --- тарифы ---
 foreach ([1 => '1 билет', 2 => '2 билета', 4 => '4 билета', 5 => '5 билетов', 11 => '11 билетов', 12 => '12 билетов', 21 => '21 билет', 22 => '22 билета', 25 => '25 билетов'] as $n => $w) {
     check("tickets_word($n)", tickets_word($n) === $w);

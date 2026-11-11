@@ -230,3 +230,27 @@ function pick_tariff(array $event, ?string $key): ?array {
     $t = $event['tariffs'][$key] ?? null;
     return is_array($t) ? $t + ['key' => $key] : null;
 }
+
+// Проверка сайта (server/health-check.php): $r — коды ответов главной, страницы регистрации и формы
+// (форма получает «пустышку» с заполненным антиспам-полем и должна перевести на /spasibo/, не создавая сделку).
+function health_problems(array $r): array {
+    $codeText = fn(int $c): string => $c === 0 ? 'нет ответа' : "ответ $c";
+    $problems = [];
+    if ((int) $r['home'] !== 200) { $problems[] = 'главная: ' . $codeText((int) $r['home']); }
+    if ((int) $r['reg'] !== 200) { $problems[] = 'страница регистрации: ' . $codeText((int) $r['reg']); }
+    $form = $r['form'];
+    if ((int) $form['code'] === 0) { $problems[] = 'форма: нет ответа'; }
+    elseif ((int) $form['code'] !== 303 || !str_ends_with((string) $form['location'], '/spasibo/')) {
+        $problems[] = 'форма: ' . $codeText((int) $form['code']) . ' вместо перехода на /spasibo/';
+    }
+    return $problems;
+}
+
+// Сообщение в чат только при смене состояния. $wasOk: прошлый результат (null — проверок ещё не было).
+function health_message(?bool $wasOk, array $problems): ?string {
+    if ($problems && $wasOk !== false) {
+        return "🚨 Регистрация на сайте kutyurnaya.ru не работает\n· " . implode("\n· ", $problems) . "\nНапишите Claude.";
+    }
+    if (!$problems && $wasOk === false) { return '✅ Регистрация на сайте снова работает.'; }
+    return null;
+}
